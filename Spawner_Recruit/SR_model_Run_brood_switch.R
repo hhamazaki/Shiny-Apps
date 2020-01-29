@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #initialize
 library(shiny)
 library(shinythemes)
