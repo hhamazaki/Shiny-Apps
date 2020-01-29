@@ -1,0 +1,13 @@
+name: test
+title: test
+username:
+account: hamachan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 352029
+bundleId: 1403487
+url: https://hamachan.shinyapps.io/test/
+when: 1527801288.9526
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|app.R|Data_input.R|test.R

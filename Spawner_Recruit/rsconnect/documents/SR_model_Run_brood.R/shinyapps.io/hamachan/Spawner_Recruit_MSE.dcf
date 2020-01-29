@@ -1,0 +1,13 @@
+name: Spawner_Recruit_MSE
+title: Spawner_Recruit_MSE
+username:
+account: hamachan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 607180
+bundleId: 1874559
+url: https://hamachan.shinyapps.io/Spawner_Recruit_MSE/
+when: 1550084023.62131
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app.R|Data_input.R|MSE.r|Spawner_Recruit2.R|SR_model.R|SR_model_RStan.R|SRmodel_ggplot.R|SRnote.R|SRnote2.R|test.R

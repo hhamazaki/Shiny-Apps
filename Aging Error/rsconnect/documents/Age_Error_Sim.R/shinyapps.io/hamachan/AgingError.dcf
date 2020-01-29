@@ -1,0 +1,12 @@
+name: AgingError
+title: AgingError
+username:
+account: hamachan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 732329
+bundleId: 1895216
+url: https://hamachan.shinyapps.io/AgingError/
+when: 1550988461.44144
+asMultiple: FALSE
+asStatic: FALSE

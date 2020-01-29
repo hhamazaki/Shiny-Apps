@@ -1,0 +1,13 @@
+name: test2
+title: test2
+username:
+account: hamachan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 368969
+bundleId: 1508107
+url: https://hamachan.shinyapps.io/test2/
+when: 1532987896.16811
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app.R|Data_input.R|SRnote.R|SRnote_ggplot.R|SRnote2.R|test.R
