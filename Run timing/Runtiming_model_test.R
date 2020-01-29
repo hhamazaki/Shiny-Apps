@@ -11,7 +11,7 @@ library(openxlsx)
 ui<-fluidPage(
   navbarPage(
     theme = shinytheme("cerulean"),  
-    "Missing passage estimation",
+    "Pacific Salmon Escapement Goal Analyses",
 #-----------------------------------------------------------------------
 #  Panel 1:  Data Input and Submit 
 #-----------------------------------------------------------------------
@@ -19,7 +19,7 @@ ui<-fluidPage(
    sidebarPanel(width = 3,
   selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')),
 #---------------------------------------------------    
-#  File Inuput3
+#  File Inuput
 #---------------------------------------------------
 # Input: Select a file ----
   fileInput("file1", "Choose CSV File",
@@ -43,15 +43,9 @@ ui<-fluidPage(
 # Input: Select what to display
     numericInput("fage", "First Retun Age", value=4,min=1,max=20,step=1)
   ),# End Conditional Panel
-p("Bayesian Simulation Setting"),
-numericInput(inputId='n.iter','Simulation Length',value=10000,min=0,step=10000), 
-numericInput(inputId='n.burnin','Burn-in Length',value=1000,min=0,step = 1000),
-numericInput(inputId='n.thin','Thinning',value=10,min=0,step = 1),
-numericInput(inputId='n.chain','Number of Chains',value=1,min=1,step = 1),
-selectInput('Model',"Select SR Model",choice=list('Ricker','Ricker AR1','Beverton-Holt','Deriso-Shunute'),selected ='Ricker'),
-checkboxInput(inputId="ar1", "Add AR(1) Error", FALSE),
-p("Start Bayesian Analyses"),
-actionButton("RunBayes","Run")
+p(strong("Choose brood year range")),
+uiOutput('fyear'),
+uiOutput('lyear'),
 
    ), # End SidePanel
   # output
@@ -77,8 +71,8 @@ actionButton("RunBayes","Run")
       tabPanel("Summary",
              verbatimTextOutput('summary'),
                plotOutput('hist')),
-      tabPanel("inits",
-               verbatimTextOutput('test')
+      tabPanel("To be included",
+           
           )  # End tabPanel
         )  # End tabsetPanel
       )  # End mainPanel
@@ -86,49 +80,97 @@ actionButton("RunBayes","Run")
 #-----------------------------------------------------------------------
 #  Panel 2
 #-----------------------------------------------------------------------
-  tabPanel("Missed Passage Bayesian Analyses",
-    sidebarPanel(width = 3,
-      # Horizontal line ----
-      tags$hr(),
-      p(strong("Bayesian Output")),
-      numericInput("CI", "% Credible Interval", value=90,min=0,max=100,step=5),
-      conditionalPanel(condition="input.conditionedPanels == 'Bayesian Model'",       
-                       uiOutput('fpage')
-         ),    
-      conditionalPanel(condition="input.conditionedPanels == 'Daily passage'", 
-                       uiOutput('columns'),
-                       downloadButton("downloadData", "Download")             
-             ),
-      conditionalPanel(condition="input.conditionedPanels == 'Trace Plots'", 
-                      uiOutput('lpage')            
-             )      
-            ),  # End sidebarPanel
-           mainPanel(tabsetPanel(
+navbarMenu("SR Model Analyses",
+  tabPanel("Run Bayesian Model",
+  sidebarPanel(width = 3,
+  p("Bayesian Model Setting"),
+  numericInput(inputId='n.iter','Simulation Length',value=10000,min=0,step=10000), 
+  numericInput(inputId='n.burnin','Burn-in Length',value=1000,min=0,step = 1000),
+  numericInput(inputId='n.thin','Thinning',value=10,min=0,step = 1),
+  numericInput(inputId='n.chain','Number of Chains',value=1,min=1,step = 1),
+  selectInput('Model',"Select SR Model",choice=list('Ricker','Beverton-Holt'),selected ='Ricker'),
+  checkboxInput(inputId="ar1", "Add AR(1) Error", FALSE),
+  p("Start Bayesian Analyses"),
+  actionButton("RunBayes","Run")                                 
+          ),  # End sidebarPanel
+           
+     mainPanel(
+       tabsetPanel(
              tabPanel("Bayesian Model",
- #                     plotOutput(height='500px','pfig2'),
+                      verbatimTextOutput('test'),
+                      ),
+             tabPanel("Model summary",
                       p(strong("Model summary")), 
-                      verbatimTextOutput('BayesSum')                    
+                      verbatimTextOutput('BayesSum')  
                       ),
-             tabPanel("Annual summary",
-                      tableOutput("ptable")
-                      ),
-             tabPanel("Daily passage",
-                      tableOutput("ytable")
+             tabPanel("Trace Plots",
+                      plotOutput("plot.trace")
                       ),
              tabPanel("Model Parameter", 
                       tableOutput("partable")
                       ),
              tabPanel("Trace Plots",
-                      plotOutput(height='500px','pfig')
+  
                       ),
                id = "conditionedPanels"
                )#End tabsetPanel
              )#End mainPanel
            ),#End tabPanel
+  
+  tabPanel("SR Model",
+       sidebarPanel(width = 3,
+       selectInput(inputId="ui","Axis Dislpay Unit", choices = c(1,1000,1000000)),  
+       p("Escapement Goal Range"),
+       numericInput(inputId='egl','Lower Goal',value=0,min=0), 
+       numericInput(inputId='egu','Upper Goal',value=0,min=0),    
+       checkboxInput(inputId="show.eg", "Show Escapement Goal", FALSE),
+       checkboxInput(inputId="show.points", "show Years", TRUE), 
+       checkboxInput(inputId="show.smsy", "show Smsy", TRUE),
+       checkboxInput(inputId="show.smax", "show Smax", TRUE),
+       checkboxInput(inputId="show.int", "show Interval", TRUE),
+       numericInput("CI", "% Credible Interval", value=90,min=0,max=100,step=5),
+       selectInput(inputId="Li","Interval Type", choices = c('confidence','prediction'))
+         ),  # End sidebarPanel
+    mainPanel(tabsetPanel(
+           #------------------ SR Plot----------------------------------------------        
+           tabPanel("SR Plot",
+                    plotOutput(height='500px','plot.SR'),
+                    downloadButton("down", label = 'Download the plot')
+           ),#End tabPanel
+           
+#------------------ Yield Plot-------------------------------------------        
+           tabPanel("Yield Plot",
+                    plotOutput(height='500px','plot.Yield')
+           ),#End tabPanel
+           
+           #------------------ Time Series ------------------------------------------- 
+           tabPanel("Time Series",
+                    plotOutput("srt"),
+                    conditionalPanel(condition = "input.dataType == 'Run'",
+                                     plotOutput('runesc')
+                    )
+             ),#End tabPanel
+           
+           #------------------ Residuals  --------------------------------------------- 
+           tabPanel("Residuals", 
+                    plotOutput("Resid"),
+                    p(strong("Durbin-Watson Serial Correlation Analyses")), 
+                    verbatimTextOutput('dwtest')),
+           
+           #------------------ Bootstrap ----------------------------------------------- 
+           tabPanel("Bootstrap",
+                    verbatimTextOutput('bsummary'),
+                    verbatimTextOutput('bquantile'),
+                    plotOutput("bhist"))
+
+           )#End tabsetPanel
+          )#End mainPanel
+         )#End tabPanel
+        ),#End nabVarMenu
 #-----------------------------------------------------------------------
 #  Panel 3 
 #-----------------------------------------------------------------------
-   navbarMenu("Model Diganoses",
+   navbarMenu("Escapement Goal Analyses",
        tabPanel("Panel 1",      
          sidebarPanel(width = 3,
             conditionalPanel(condition="input.conditionedPanel == 'Tab 1'",       
@@ -167,7 +209,7 @@ actionButton("RunBayes","Run")
                          )#End tabsetPanel
                       )#End mainPanel
                    )#End tabPanel
-   )#End nabVarMenu
+    )#End nabVarMenu
   ),#End nabVarPage
 #------------------------------------------------------------------------
 # Citation Discraimer  
@@ -265,16 +307,41 @@ output$hist <- renderPlot({
   hist(x$R,main='',xlab='Recruit')
 })
 
-sr.data <- reactive({
-    if(input$dataType== "Run"){
-     x <- brood.table()
-     x <- x[complete.cases(x),c(1,2,dim(x)[2])]
-    } else if (input$dataType== "S-R"){
-  x <- data()
-    }
+#------------------ Create SR Data  ---------------------------------  
+#------------------ Original Data -----------------------------------
+sr.data.0 <- reactive({
+  if(input$dataType== "Run"){
+    x <- brood.table()
+    x <- x[complete.cases(x),c(1,2,dim(x)[2])]
+  } else if (input$dataType== "S-R"){
+    x <- data()
+  }
   names(x) <- c('Yr','S','R')
   return(x)     
 })
+#------------------ Find first and last brood year ------------------
+output$fyear = renderUI({
+  fyear <- sr.data.0()$Yr
+  selectInput('fyear', 'first brood year', fyear)
+})
+
+output$lyear = renderUI({
+  year <- sr.data.0()$Yr
+  fyear <- input$fyear
+  lyear <- rev(year[year>fyear])
+  selectInput('lyear', 'last brood year', lyear)
+})
+
+#------------------ Trimmed Data for Bayesian Analyses --------------
+sr.data <- reactive({
+  x <- sr.data.0()
+  fyear <- input$fyear
+  lyear <- input$lyear    
+  x <- x[x$Yr>=fyear & x$Yr<=lyear,]
+  return(x)     
+})
+
+
 
 #-----------------------------------------------------------------------
 #  1.2: Create Bayese data 
@@ -303,93 +370,93 @@ Bayesdata <- reactive({
 #===============================================================================
 Bayesmodel <- reactive({
 #---------------------------------------------------------------
-#  Classic Ricker 
+#  Ricker 
 #---------------------------------------------------------------
 jag.model.CR <- function(){
     for(y in 1:nyrs){
       s[y] <- S[y]/(10^d)
-      lnRm[y] = log(S[y]) + lnalpha - beta * s[y]
+      fit[y] = log(S[y]) + lnalpha - beta * s[y]
+      e[y] = log(R[y]) - fit[y]
     }
-    #     Define Priors
-    lnalpha ~ dunif(0,10)
-    beta ~ dunif(0,10)
-    sigma ~ dunif(0,10)
-    phi ~ dunif(-1,1)
-    Tau <- 1/(sigma*sigma)
-    # Likelihood 
-    for(y in 1:nyrs){  
-      R[y] ~ dlnorm(lnRm[y],Tau)
-    }  
-  }
-#---------------------------------------------------------------
-#  AR1 Ricker 
-#---------------------------------------------------------------
-  jag.model.AR1 <- function(){
-    for(y in 1:nyrs){
-      s[y] <- S[y]/(10^d)
-      lnRm1[y] = log(S[y]) + lnalpha - beta * s[y]
-      lnResid[y] = log(R[y]) - lnRm1[y]
-    }
-    lnRm[1] = lnRm1[1] + ar1*phi*lnresid0;	  
+# ar1 = 0 in standard analysis   
+# ar1 = 1 when AR1 error moddel is considered. 
+      mu[1] = fit[1] + ar1*phi * e0;	  
     for(y in 2:nyrs){	   
-      lnRm[y] = lnRm1[y] + ar1*phi*lnResid[y-1]
+      mu[y] = fit[y] + ar1*phi*e[y-1]
     }
     #     Define Priors
     lnalpha ~ dunif(0,10)
     beta ~ dunif(0,10)
     sigma ~ dunif(0,10)
     phi ~ dunif(-1,1)
-    lnresid0 ~ dnorm(0,0.001) 
+    e0 ~ dnorm(0,0.001) 
     Tau <- 1/(sigma*sigma)
-    # Likelihood 
+# Likelihood 
     for(y in 1:nyrs){     
-      R[y] ~ dlnorm(lnRm[y],Tau)
+      R[y] ~ dlnorm(mu[y],Tau)
     }  
   }
 #---------------------------------------------------------------
 #  Beverton Holt  
 #---------------------------------------------------------------
-  jag.model.BH <- function(){
+jag.model.BH <- function(){
     for(y in 1:nyrs){
       s[y] <- S[y]/(10^d)
-      lnRm[y] <- lnalpha + log(S[y]) -log(1+beta*s[y])
+      fit[y] = lnalpha + log(S[y]) -log(1+beta*s[y])
+      e[y] = log(R[y]) - fit[y]
     }
-    #     Define Priors
+# ar1 = 0 in standard analysis   
+# ar1 = 1 when AR1 error moddel is considered.   
+      mu[1] = fit[1] + ar1*phi * e0	  
+    for(y in 2:nyrs){	   
+      mu[y] = fit[y] + ar1*phi*e[y-1]    
+    }
+    # Define Priors
     lnalpha ~ dunif(0,10)
     beta ~ dunif(0,10)
+    phi ~ dunif(-1,1)
+    e0 ~ dnorm(0,0.001)     
     sigma ~ dunif(0,10)
     Tau <- 1/(sigma*sigma)
     # Likelihood 
     for(y in 1:nyrs){     
-      R[y] ~ dlnorm(lnRm[y],Tau)
+      R[y] ~ dlnorm(mu[y],Tau)
     }  
   }
 #---------------------------------------------------------------
 #  Deriso-Shunute  
 #---------------------------------------------------------------
-  jag.model.DS <- function(){
+jag.model.DS <- function(){
     for(y in 1:nyrs){
       s[y] <- S[y]/(10^d)
       lnS[y] <- log(S[y])
-      lnR[y] <- log(R[y])
-      lnRm[y] = lnS[y] + lnalpha - log(1 + beta*c*s[y])/c 
+      fit[y] = lnalpha + log(S[y]) - log(1 + beta*c*s[y])/c 
+      e[y] = log(R[y]) - fit[y]
     }
-    #     Define Priors
+# ar1 = 0 in standard analysis   
+# ar1 = 1 when AR1 error moddel is considered.   
+  mu[1] = fit[1] + ar1*phi * e0;	  
+  for(y in 2:nyrs){	   
+  mu[y] = fit[y] + ar1*phi*e[y-1]    
+   } 
+  #     Define Priors
     lnalpha ~ dunif(0,10)
     beta ~ dunif(0,10)
     sigma ~ dunif(0,10)
     c ~ dunif(0,1)
+    phi ~ dunif(-1,1)
+    e0 ~ dnorm(0,0.001)     
     Tau <- 1/(sigma*sigma)
     # Likelihood 
     for(y in 1:nyrs){     
-      R[y] ~ dlnorm(lnRm[y],Tau)
+      R[y] ~ dlnorm(mu[y],Tau)
     }  
   }
   
 #-------------------------------------------------------------------
 # SR functions for post pcoessing 
 #-------------------------------------------------------------------
-# Classic Ricker
+# Ricker
   SR.CR <- function(lnalpha,beta,S,d){
     s <- S/(10^d)
     lnR <- log(S) + lnalpha - beta*s
@@ -413,29 +480,30 @@ jag.model.CR <- function(){
 if(input$Model=='Ricker'){
     jagmodel <- jag.model.CR
     parameters <- c('lnalpha','beta','sigma') 
+    if(input$ar1==TRUE){
+    parameters <- c(parameters,'phi','e0')    
+    }
     model <- SR.CR
   }
-  if(input$Model=='Ricker AR1'){
-    jagmodel <- jag.model.AR1
-    parameters <- c('lnalpha','beta','phi','sigma') 
-    model <- SR.CR
-  }
-  
-  if(input$Model=='Beverton-Holt'){
+if(input$Model=='Beverton-Holt'){
     jagmodel <- jag.model.BH
     parameters <- c('lnalpha','beta','sigma')
+    if(input$ar1==TRUE){
+    parameters <- c(parameters,'phi','e0')    
+    }
     model <- SR.BH
   } 
-  
-  if(input$Model=='Deriso-Shunute'){
+if(input$Model=='Deriso-Shunute'){
     jagmodel <- jag.model.DS
     parameters <- c('lnalpha','beta','c','sigma')
+    if(input$ar1==TRUE){
+    parameters <- c(parameters,'phi','e0')    
+    }
     model <- SR.DS
   }
   out <- list(jagmodel=jagmodel,parameters=parameters,model=model)
   return(out)
 })
-
 
 output$test <- renderPrint({ Bayesmodel() })
 
@@ -467,28 +535,8 @@ run.JAGS <- eventReactive(input$RunBayes,{
   nthin <- input$n.thin
   nchain <- input$n.chain
   #  JAGS model selection 
-  
-  if(input$Model=='Ricker'){
-#    jagmodel <- jag.model.CR
-#    parameters <- c('lnalpha','beta','sigma') 
-  }
-  if(input$Model=='Ricker AR1'){
-    jagmodel <- jag.model.AR1
-    parameters <- c('lnalpha','beta','phi','sigma') 
-  }
-  
-  if(input$Model=='Beverton-Holt'){
-    jagmodel <- jag.model.BH
-    parameters <- c('lnalpha','beta','sigma')
-  } 
-  
-  if(input$Model=='Deriso-Shunute'){
-    jagmodel <- jag.model.DS
-    parameters <- c('lnalpha','beta','c','sigma')
-  }
   jagmodel <- Bayesmodel()$jagmodel
   pars <- Bayesmodel()$parameters
-  
   output <- jags(data=datnew,parameters.to.save=pars, model.file= jagmodel,
                  n.chains=nchain, n.iter=niter,n.burnin=nburn,n.thin=nthin,DIC=TRUE)
   return(output)
@@ -505,8 +553,7 @@ sim <- reactive({
   x <- run.JAGS()
   return(x)
 })
-
-
+#----------- MCMC Data -------------------------------------------------
 mcmc <- reactive({
   # Read mcmc data
   mcmc <- as.mcmc(sim())
@@ -527,37 +574,43 @@ output$BayesSum <- renderPrint({
 })
 
 #-------------------------------------------------------------------------------
-#  5.4 Extract Annual model parameters CI
+#  5.4 Calculate empirical 
 #-------------------------------------------------------------------------------
 model.pars <- reactive({
   D <- floor(mean(log10(sr.data()$S)))
-  # CI interval probability   
+# CI interval probability   
   pci <- (100-input$CI)/200
-  # Read mcmc data
+# Read mcmc data
   post <- as.matrix(mcmc())
-  # import model parameter column names
-  # extract only mcmc model parameters
-#  ln.alpha.c <- ln.alpha+0.5*(pars$sigma)^2
-#  Seq <- with(pars,ln.alpha/beta)*10^D
-#  Smsy <- Seq*(0.5-0.07*ln.alpha)
-#  Umsy <- ln.alpha*(0.5-0.07*ln.alpha)
-#  Rmsy <- Smsy*exp(ln.alpha-beta*Smsy)
-#  MSY <- Rmsy-Smsy
-#  Smax <- 1/beta
-#  Rmax <- exp(ln.alpha-1)/beta
-#  out <- data.frame(t(c(ln.alpha,alpha, beta, sigma, ln.alpha.c,Seq,Smsy,Umsy,Rmsy,MSY,Smax,Rmax)))
-#  names(out) <- c('ln.alpha','alpha', 'beta', 'sigma','ln.alpha.c','Seq','Smsy','Umsy','Rmsy','MSY','Smax','Rmax')
-  # calculate mean, lci, uci
+  ln.alpha <- post[,'lnalpha']
+  alpha <- exp(post[,'lnalpha'])
+  beta <- post[,'beta']/(10^D)
+  sigma <- post[,'sigma']
+ if(input$input$Model=='Ricker')
+ {
+   Seq <- ln.alpha/beta
+   Smsy <- Seq*(0.5-0.07*ln.alpha)
+   Umsy <- ln.alpha*(0.5-0.07*ln.alpha)
+   Smax <- 1/beta
+ }
+if(input$input$Model=='Beverton-Holt')
+  {
+    Seq <- (alpha-1)/beta
+    Smsy <- (sqrt(alpha)-1)/beta
+    Umsy <- 1-sqrt(1/alpha)
+    Smax <- NA
+  }
+  
+# calculate mean, lci, uci
   ym <- apply(model.pars,2,mean)
   yl <- apply(model.pars,2,function(x) quantile(x, pci))
   yu <-  apply(model.pars,2,function(x) quantile(x, 1-pci))
-  # extract model par names 
+# extract model par names 
   parname <- names(ym)
   # create data.frame and output
   out <- data.frame(pars=parname,mean=ym, LCI = yl, UCI = yu) 
   return(out)
 
-  
 })
 
 
@@ -618,27 +671,6 @@ post.samp <- reactive({
   return(out)  
 })
 
-#-----------------------------------------------------------------------
-#  5.2 Calculate Daily median,  CI of missing dates 	  
-#-----------------------------------------------------------------------
-y.pred.yd <- reactive({
-# mcme resutls   
-  y.pred <- post.samp()
-# CI interval probability   
-  pci <- (100-input$CI)/200
-# Median estimate 
-ymed <- apply(y.pred,2,median)
-# cut off to zero
-ymed <- ifelse(ymed<0,0,ymed)
-# Lower CI
-ylow <- apply(y.pred,2, function(x) quantile(x, pci))
-# cut off to zero
-ylow <- ifelse(ylow<0,0,ylow)
-# Upper CI
-yup <- apply(y.pred,2, function(x) quantile(x, 1-pci))
-out <- data.frame(y = names(ymed), ymed=ymed,ylow=ylow,yup=yup)
-return(out)
-})
 
 #-------------------------------------------------------------------------------
 #  5.4 Extract Annual 95% CI passage 
@@ -766,14 +798,11 @@ output$downloadData <- downloadHandler(
 #-----------------------------------------------------------------------
 #  Trace and density plots 
 #-----------------------------------------------------------------------
-output$pfig <- renderPlot({
+output$plot.trace <- renderPlot({
   pg <- input$p1
   mcmc <- as.mcmc(sim())
-  pars <- par.cols()
-  par(mfrow=c(2,6),mai=c(0.2,0.2,0.2,0.2))
-  pg1 <- 2*(pg-1)+1
-  pg2 <- min(2*(pg-1)+2,length(years()))
-  plot(mcmc[, as.vector(t(as.matrix(pars[pg1:pg2,])))],auto.layout=FALSE)
+  par(mfrow=c(2,6))
+  plot(mcmc,auto.layout=FALSE)
 })
 
 #-----------------------------------------------------------------------

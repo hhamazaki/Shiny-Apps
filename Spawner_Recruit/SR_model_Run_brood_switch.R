@@ -46,7 +46,6 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
     radioButtons("sep", "Separator",
       choices = c(Comma = ",", Tab = "\t"), selected = ","),
 # Horizontal line ----
-#    uiOutput("ui"),
 #------------------------------------------------------------------------    
 #  Conditional File Inuput UI
 #------------------------------------------------------------------------
@@ -64,7 +63,11 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
             title = "", content = "Return Age =FW Age+SW Age + 1 ", placement = "right"
          )
     )
-  )# End Conditional Panel
+  ),# End Conditional Panel
+p(strong("Choose brood year range")),
+  uiOutput('fyear'),
+  uiOutput('lyear'),
+  uiOutput('yrange')
 ), # End of Sidebar  Panel
   # output
 #------------------------------------------------------------------------    
@@ -111,8 +114,8 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
             )
         ),  
       textOutput("modelslct"),
-      textInput(inputId='caption',label='Figue Caption Title',value=''),           
-        selectInput(inputId="ui","Axis Dislpay Unit", choices = c(1,10,100,1000,1000000)),  
+#      textInput(inputId='caption',label='Figue Caption Title',value=''),           
+        selectInput(inputId="ui","Axis Dislpay Unit", choices = c(1,1000,1000000)),  
         p("Escapement Goal Range"),
         numericInput(inputId='egl','Lower Goal',value=0,min=0), 
         numericInput(inputId='egu','Upper Goal',value=0,min=0),    
@@ -131,27 +134,26 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
       mainPanel(tabsetPanel(
 #------------------ SR Plot----------------------------------------------        
         tabPanel("SR Plot",
-            plotOutput(height='500px',"p"),
-            downloadButton("down", label = "Download the plot"),
+            plotOutput(height='500px','plot.SR'),
+            downloadButton("down", label = 'Download the plot'),
             p(strong("Anova Table")), 
             verbatimTextOutput('anova'),
             p(strong("SR Parameters")), 
             verbatimTextOutput('RS.out')                      
-                      ),
+                      ),#End tabPanel
 
 #------------------ Yield Plot-------------------------------------------        
             tabPanel("Yield Plot",
-              plotOutput(height='500px','py')
-                      ),
+              plotOutput(height='500px','plot.Yield')
+                      ),#End tabPanel
 
 #------------------ Time Series ------------------------------------------- 
             tabPanel("Time Series",
               plotOutput("srt"),
               conditionalPanel(condition = "input.dataType == 'Run'",
                 plotOutput('runesc')
-# test
                    )
-                    ),
+                    ),#End tabPanel
 
 #------------------ Residuals  --------------------------------------------- 
             tabPanel("Residuals", 
@@ -173,29 +175,30 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
 #  Panel 3  Escapement Goal Aanalyses 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    navbarMenu("Escapement Goal Analyses",
-#------------------------------------------------------------------------    
+#-----------------------------------------------------------------------------    
 #  Smsy Goal Analyses 
-#------------------------------------------------------------------------    
+#-----------------------------------------------------------------------------    
     tabPanel("Smsy Goal Analyses",      
         sidebarPanel(width = 3,
         p(strong("Smsy Analyses")),  
         numericInput("p1", "Min % of MSY", value=90,min=0,max=100,step=5),
         numericInput("p3", "% Meeting MSY Target", value=90,min=0,max=100,step=5)
          ),
-        
+#------------------ Main Panel ------------------------------------------------- 
          mainPanel(
            tabsetPanel(
 #------------------ Smsy Profile ----------------------------------------------- 
              tabPanel("Smsy Profile",
                 plotOutput(height='500px','bsmsy'),
-                verbatimTextOutput("bsmsyt")),
+                verbatimTextOutput("bsmsyt")
+                      ), #End tabPanel
 #------------------ Smsy Yield Profile -----------------------------------------
              tabPanel("Yield  & Recruit Profile",
- #               splitLayout(cellWidths = c("50%", "50%"),
+#               splitLayout(cellWidths = c("50%", "50%"),
                 plotOutput(height='300px','bsmsy.y'),
                 plotOutput(height='300px','bsmsy.r')
-  #              )
-                    )
+#              )
+                    )#End tabPanel
                    )#End tabsetPanel
                   )#End mainPanel
                 ),#End tabPanel
@@ -233,13 +236,17 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
 #------------------------------------------------------------------------    
     tabPanel("Yield & Recruit Goal Analyses",
          sidebarPanel(width = 3,
+    conditionalPanel(condition="input.cPanel == 'Yield Goal Analyses'",                        
          p(strong("Yield GoalAnalyses")),            
          numericInput("y1", "Min Mean Yied", value=100000,min=0, step=10000),
-         numericInput("y1p", "Min % Achieve", value=90,min=0, max=100,step=5),
+         numericInput("y1p", "Min % Achieve", value=90,min=0, max=100,step=5)
+         ),
+    conditionalPanel(condition="input.cPanel == 'Recruit Goal Analyses'",  
          p(strong("Recruit Goal Analyses")), 
          numericInput("r1", "Min Mean Recruit", value=100000,min=0, step=10000),
          numericInput("r1p", "Min % Achieve", value=90,min=0, max=100,step=5)
-          ),  # End sidebarPanel 
+          ) 
+         ),  # End sidebarPanel 
          mainPanel(
            tabsetPanel(
              
@@ -251,8 +258,9 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
 #                      )
                       ,
                       splitLayout(cellWidths = c("50%", "50%"),
-                      verbatimTextOutput("byt"),
-                      textOutput("bypt"))),
+#                      verbatimTextOutput("byt"),
+                      textOutput("bypt"))
+                       ),
 
 #------------------ Recruit Goal Profile ----------------------------------------------   
              tabPanel("Recruit Goal Analyses",
@@ -262,9 +270,10 @@ selectInput(inputId="dataType","Data Type", choices = c('S-R','Run')) %>%
 #                      )
                       ,
                       splitLayout(cellWidths = c("50%", "50%"),
-                      verbatimTextOutput("brt"),
+#                      verbatimTextOutput("brt"),
                       textOutput("brpt"))
-              )# End tabPanel
+                  ),# End tabPanel
+              id = "cPanel"
              )#End tabsetPanel
             )#End maiPanel
           ),#End tabPanel
@@ -350,7 +359,6 @@ navbarMenu("MSE Analyses",
                   plotOutput("simhist")
                             )
                                 ),
-           
           tabPanel("Sim Summary",
                     plotOutput('altsim.H'),
                     verbatimTextOutput("altsim.sum")
@@ -459,7 +467,7 @@ navbarMenu("MSE Analyses",
   h6("Disclaimer"),
   print("This App is developed by Toshihide Hamachan Hamazaki, Alaska Department of Fish and Game Division of Commercial Fisheries"),
   h6("Update"),
-  print(paste("Updated","08/07/2019","AR1 model and bootstrap corrected")),
+  print("01/22/2020: Added Brood Year analyses data range. Now user can chosse analysis based on selected range."),
   h6("Contact about this applicaiton"), 
   print(paste("Questions and improvement suggestions? Please contact")),
   a(href="mailto:toshihide.hamazaki@alaska.gov", "Hamachan"),
@@ -478,7 +486,7 @@ server<-shinyServer(function(input, output, session){
 #  Control MSE Analysis page.
 #  This is page will show up only when Data type is Run
 #-----------------------------------------------------------------------  
-  observe({
+ observe({
     if(input$dataType=='S-R') {
       hideTab(inputId = "tabs", target = "MSE Analyses")
       hideTab(inputId = "tabs", target = "Brood Table")
@@ -510,7 +518,7 @@ output$ui <- renderUI({
 #  Panel 1: Data upload and output 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-#------------------ File Upload  ---------------------------------             
+#------------------ File Upload  ---------------------------------------------             
 data <- reactive({
     req(input$file1)
     inFile <- input$file1
@@ -580,7 +588,7 @@ plotdownload <- function(plots) {
 
 
 #------------------ Create SR Data  ---------------------------------  
-sr.data <- reactive({
+sr.data.0 <- reactive({
   if(input$dataType== "Run"){
    x <- brood.table()
    x <- x[complete.cases(x),c(1,2,dim(x)[2])]
@@ -591,7 +599,36 @@ sr.data <- reactive({
   return(x)     
   })
 
-  
+#---- UI Output----------------------------------------------------------------------
+#output$fyear = renderUI({
+#  fyear <- sr.data.0()$Yr
+#  selectInput('fyear', 'first brood year', fyear)
+# })
+
+#output$lyear = renderUI({
+#  year <- sr.data.0()$Yr
+#  fyear <- input$fyear
+#  lyear <- rev(year[year>fyear])
+#  selectInput('lyear','last brood year', lyear)
+# })
+
+output$yrange = renderUI({
+  year <- sr.data.0()$Yr
+  fyear <- min(year)
+  lyear <- max(year)
+  sliderInput("sryears", label = "year range", min = fyear, max = lyear, value = c(fyear, lyear),step=1,sep = "")
+})
+#---- UI Output----------------------------------------------------------------------
+
+# Sr data: this is used for analyses. 
+sr.data <- reactive({
+    x <- sr.data.0()
+    fyear <- input$sryears[1]
+    lyear <- input$sryears[2]    
+    x <- x[x$Yr>=fyear & x$Yr<=lyear,]
+  return(x)     
+})
+
 # Data output display
 output$table <- renderDataTable(
     {
@@ -626,21 +663,26 @@ SRM <- reactive({
   x <- sr.data()
   D <- floor(mean(log10(x$S)))
   x$s <- x$S/(10^D)
+# Regression no AR1
   model.s <- gls(log(R/S)~s,data=x,method='ML')
-  model.ar1 <- gls(log(R/S)~s,data=x,correlation=corAR1(0.5,~1),method='ML')
+# Regression with AR1
+  model.ar1 <- gls(log(R/S)~s,data=x,correlation=corAR1(form=~1),method='ML')
+# ANOVA test 
   anova <- anova(model.s,model.ar1)
   out <- list(model.s,model.ar1,anova)
   return(out)
   })   
 
-
+# Choose SR function 
 SR <- reactive({
   model.s <- SRM()[[1]]
   model.ar1 <- SRM()[[2]]
   anova <- SRM()[[3]]
+# Choose SR   
     if(input$SRM=='Standard') { model <- model.s }
     else if (input$SRM=='AR1') { model <- model.ar1 }
     else {
+# Automatic selection based on ANOVA      
       if(anova[[9]][2] < 0.05) {model <- model.ar1}
      else
       { model <- model.s }
@@ -658,16 +700,15 @@ SR.out <- reactive({
   alpha <- exp(ln.alpha)
   beta <- -coef(SR())[2]/(10^D) 
   sigma <- sigma(SR())
-  ln.alpha.c <- ln.alpha+0.5*(sigma(SR()))^2
-  Seq <- ln.alpha.c/beta
+  Seq <- ln.alpha/beta
   Smsy <- Seq*(0.5-0.07*ln.alpha)
   Umsy <- ln.alpha*(0.5-0.07*ln.alpha)
   Rmsy <- Smsy*exp(ln.alpha-beta*Smsy)
   MSY <- Rmsy-Smsy
   Smax <- 1/beta
   Rmax <- exp(ln.alpha-1)/beta
-  out <- data.frame(t(c(ln.alpha,alpha, beta, sigma, ln.alpha.c,Seq,Smsy,Umsy,Rmsy,MSY,Smax,Rmax)))
-  names(out) <- c('ln.alpha','alpha', 'beta', 'sigma','ln.alpha.c','Seq','Smsy','Umsy','Rmsy','MSY','Smax','Rmax')
+  out <- data.frame(t(c(ln.alpha,alpha, beta, sigma ,Seq,Smsy,Umsy,Rmsy,MSY,Smax,Rmax)))
+  names(out) <- c('ln.alpha','alpha', 'beta', 'sigma','Seq','Smsy','Umsy','Rmsy','MSY','Smax','Rmax')
   return(out)
 })
 
@@ -675,14 +716,18 @@ SR.out <- reactive({
 #  3.0: SRp:  Create Model predicted mean, CI, PI
 #-----------------------------------------------------------------------
 SRp <- reactive({
+# Import model parameters
   par <-SR.out()
+# Import CI %
   mp <- input$p.i/100
   rg <- input$r1
   yg <- input$y1
 # Prediction model s range  
   D <- floor(mean(log10(sr.data()$S)))
-  s <- seq(0,1.1*max(par$Seq,max(sr.data()$S)), length.out =101)
-  sd <- s/(10^D)
+  max.s <- max(par$Seq,max(sr.data.0()$S))
+  max.b <- ceiling(max.s/(10^D))
+  sd <- seq(0,max.b,length.out=201)
+  s <- sd*(10^D)
 # Predicttion 
   pred <- predictSE(SR(), newdata=data.frame(s=sd))
 # Predicted ln(R/S)
@@ -786,19 +831,21 @@ tcol <- function(color, percent = 50, name = NULL) {
 #-----------------------------------------------------------------------
 #  6.0 Base SR plot 
 #-----------------------------------------------------------------------
-base.p <- reactive({
+base.plot.SR <- reactive({
     #  dev.control("enable")
     u <- as.numeric(input$ui)
     mult <- mult()
     x <- sr.data()
+    x0 <- sr.data.0()    
     par <-SR.out()
     xp <- x/u
+    xp0 <- x0/u    
     SRp <- SRp()[,1:4]/u
     par(xaxs='i',yaxs='i',bty='l')
     plot(R~S,data=xp,pch=19,col=1, 
-         main= input$caption,
+#         main= input$caption,
          xlab=paste("Escapement",mult),ylab=paste('Recruit',mult),
-         xlim=c(0,max(SRp$s)),ylim=c(0,1.1*max(xp$R)))
+         xlim=c(0,max(SRp$s)),ylim=c(0,1.1*max(xp0$R)))
     abline(0,1,col=2)
     # Add Predicted   
     lines(fit~s,data=SRp,col=1,lw=2)
@@ -810,20 +857,22 @@ base.p <- reactive({
 #-----------------------------------------------------------------------
 #  7.0 Base Yield plot 
 #-----------------------------------------------------------------------
-base.py <- reactive({
+base.plot.Yield <- reactive({
     #  dev.control("enable")
     u <- as.numeric(input$ui)
     mult <- mult()
     x <- sr.data()
+    x0 <- sr.data.0()    
+    xp <- x/u
+    xp0 <- x0/u     
     par <-SR.out()
     SRp <- SRp()[,1:4]/u
-    xp <- x/u
     # Plot Basic Yield plot  
     par(xaxs='i',yaxs='i',bty='l')
     plot((R-S)~S,data=xp,pch=19,col=1, 
-         main= input$caption,
+#         main= input$caption,
          xlab=paste("Escapement",mult),ylab=paste('Yield',mult),
-         xlim=c(0,max(SRp$s)),ylim=c(min(SRp$lwr-SRp$s),1.1*max(xp$R-xp$S)))
+         xlim=c(0,max(SRp$s)),ylim=c(min(SRp$lwr-SRp$s),1.1*max(xp0$R-xp0$S)))
     lines((fit-s)~s,data=SRp,col=1,lw=2)
     abline(h=0,col=2)
     out <-recordPlot()
@@ -845,7 +894,6 @@ base.py <- reactive({
    on.exit(progress$close())
    progress$set(message = paste(boot.n,'Bootstrap Calculation in progress'),
                 detail = 'This will take a while. Be patient please....')
-
 #-----------------------------------------------------------------------   
     D <- floor(mean(log10(sr.data()$S))) 
     s <- sr.data()$S/(10^D)
@@ -854,68 +902,83 @@ base.py <- reactive({
     phi <- coef(SR()$modelStruct$corStruct,unconstrained=FALSE)
     phi <- ifelse(is.null(phi),0,phi)
     n <- length(SRR)
-    # Step 1: Calculate AR1 residuals 
+#----------------------------------------------------------------------- 
+# Create bootstrap AR1 residuals    
+#----------------------------------------------------------------------- 
+# Step 1: Calculate AR1 residuals: v is iid  
+# when phi = 0,v = residual     
     v <- SRR[-1] - phi*SRR[-n]
-    # Step 2: AR1[1] is E[1]
+# Step 2: Assign fist v be AR1[1] residual
     v <- c(SRR[1],v)
-# Vector for AR1
+# Step 3: Create empty vecotr for AR1
     eb <- numeric(n)
-    # Step 3: Create randonm vector
-
-# Create  bootstrap replicates matrix
-    boot.R <- matrix(0,nrow=boot.n,ncol=4)
-# Add column name 
-    colnames(boot.R) <- c('ln.alpha','beta','phi','sigma')
+# Step 5: resample v (iid) with replacement.  Ths creates a list file with 
+# boot.n replicates of boots trap samples 
     resamples <- lapply(1:boot.n, function(x) sample(v, replace = TRUE))
-    output <- matrix(unlist(resamples), ncol = n, byrow = TRUE)
-    output1 <- t(t(output)+SRP)
+# Step 6: create matrix of residuals wtih row boot.n, colums n
+    vb <- matrix(unlist(resamples), ncol = n, byrow = TRUE)
+# Step 7: Add model predicted:  output1 is bootstrap replicates of y for phi = 0.  
+    Y.b <- t(t(vb)+SRP)
+# Bootstrap with AR1 logic 
+# e[1] = v[1],  e[2] = phi*v[1]+v[2], e[3] = phi^2*v[1]+phi*v[2]+v[3],...
+# e[n] = phi^n*v[1]+phi^(n-1)*v[2]+phiphi^(n-2)v[3] +....+v[n]
+# Step 1 calculate vector 1,phi^2,phi^3,.....phi^(n-1)    
  if(phi!=0){     
     vph <- numeric(n)
     for(i in 1:n){
       vph[i] <- phi^(i-1)
     }
-    # Bootstrap Calcuration 
-    output2 <- matrix(0,nrow=boot.n,ncol=n)    
-    output2[,1] <- output[,1]
-    for (j in 2:n){
-      output2[,j] <- colSums(t(output[,1:j])*rev(vph[1:j]))   
-    }
-    output2 <- t(t(output2)+SRP)
-   }
+# Step 2: set matrixt 
+    e.b <- matrix(0,nrow=boot.n,ncol=n)
+# first column is v[1]
+    e.b[,1] <- vb[,1]
+# first column is v[1]
+  for (j in 2:n){
+# e[2] = phi*v[1]+v[2]= sum(c(V1,V2)*c(phi,1))  
+# e[3] = phi^2*v[1]+phi*v[2]+v[3]= sum(c(V1,V2,v3)*c(phi*2,phi,1))
+# e[n] = phi^n*v[1]+phi^(n-1)*v[2]+phiphi^(n-2)v[3] +....+v[n] 
+    #  = sum(C(V1,V2,..Vn)*c(phi^(n-1),phi^(n-2), .... ,1)) 
+    e.b[,j] <- colSums(t(vb[,1:j])*rev(vph[1:j]))   
+      }
+  Y.ar.b <- t(t(e.b)+SRP)
+  }
+    
   withProgress(message = 'Creating bootstrap data', value = 0, {
 # Bootstrap Calcuration 
-  for (i in 1:boot.n)
+# Step 4: Create  bootstrap replicates matrix
+    boot.R <- matrix(0,nrow=boot.n,ncol=4)
+# Add column name 
+    colnames(boot.R) <- c('ln.alpha','beta','phi','sigma') 
+for (i in 1:boot.n)
       {
 # Create bottstrap random ln(R/S) 
-  if(phi==0) 
-      {
-      bootR <- output1[i,]
-#      bx <- data.frame(bootR,s)
+  if(phi==0){
+      bootR <- Y.b[i,]
+#     bx <- data.frame(bootR,s)
       SRi <- gls(bootR~s,method='ML')
       } else {
-# Create AR1 error 
-      bootR <- output2[i,]
+#  With AR1 error 
+      bootR <- Y.ar.b[i,]
 #      bx <- data.frame(bootR,s)
-      SRi <- gls(bootR~s,correlation=corAR1(0.5,~1),method='ML')
-    }  
+      SRi <- gls(bootR~s,correlation=corAR1(form=~1),method='ML')
+      }  
 # Extract, Ricker lnalpha, beta, phi,sigma
-      boot.R[i,1] <- SRi$coefficients[1]
-      boot.R[i,2] <- -SRi$coefficients[2]/(10^D)
-      foo <- coef(SRi$modelStruct$corStruct,unconstrained=FALSE)
-      foo <- ifelse(is.null(foo),0,foo)
-      boot.R[i,3] <- foo
-      boot.R[i,4] <- sigma(SRi)
-#      progress$set(value = i/boot.n)
+    boot.R[i,1] <- SRi$coefficients[1]
+    boot.R[i,2] <- -SRi$coefficients[2]/(10^D)
+# Esxtract phi 
+    phi.b <- coef(SRi$modelStruct$corStruct,unconstrained=FALSE)
+# if does not exist, put 0     
+    boot.R[i,3] <- ifelse(is.null(phi.b),0,phi.b)
+    boot.R[i,4] <- sigma(SRi)
+#     progress$set(value = i/boot.n)
       # Increment the progress bar, and update the detail text.
 #      progress$inc(1/boot.n, detail = paste("Completed", round(100*i/boot.n,0),"%"))
-      incProgress(1/boot.n, detail = paste("Progress", round(100*i/boot.n,0),"%"))
+#      incProgress(1/boot.n, detail = paste("Progress", round(100*i/boot.n,0),"%"))
     }
   })
 # Change to data.frame    
     boot.R <- data.frame(boot.R)
-#    boot.R$phi <- ifelse(is.null(boot.R$phi),0,boot.R$phi)
     boot.R$alpha <- exp(boot.R$ln.alpha)
-    boot.R$ln.alpha.c <- with(boot.R,ln.alpha+0.5*sigma^2)
     boot.R$Seq <- with(boot.R,ln.alpha/beta)
     boot.R$Smsy <- with(boot.R,Seq*(0.5-0.07*ln.alpha))
     boot.R$Rmsy <- with(boot.R,Smsy*exp(ln.alpha-beta*Smsy))
@@ -945,9 +1008,15 @@ Y.boot <- reactive({
 #-----------------------------------------------------------------------  
   par <-SR.out()
   Seq <- par$Seq
-  boot.s <- seq(0,1.1*max(par$Seq,max(sr.data()$S)), length.out =101)
+  max.s <- max(par$Seq,max(sr.data()$S))
+  D <- floor(log10(max.s))
+  maxb <- ceiling(max.s/(10^D))*10^D
+# Set 200 segments of s  
+  boot.s <- seq(0,maxb, length.out=201)
   boot.R <- boot()
+# calculate recruitment   
   boot.Rec <- t(boot.s*t(exp(boot.R[,'ln.alpha']-boot.R[,'beta']%o%boot.s)))
+# calculate Yield     
   boot.Yield <- t(t(boot.Rec)-boot.s)
   out <- list(Y.boot = boot.Yield, R.boot = boot.Rec, boot.s = boot.s)
   return(out) 
@@ -961,12 +1030,16 @@ b.YA <- reactive({
   mp <- (1-input$p.i/100)/2
   boot.s <- Y.boot()$boot.s 
   boot.Y <- as.matrix(Y.boot()$Y.boot)
+# Calculate mean Yield
   boot.Ym <- colMeans(boot.Y)
+# Calculate Uppe and lower bonds
   boot.Yu <- apply(boot.Y,2,function(x) quantile(x,1-mp))
   boot.Yl <- apply(boot.Y,2,function(x) quantile(x,mp))
 # Recruit goal  
   boot.R <- as.matrix(Y.boot()$R.boot)
+# Calculate mean Recruit  
   boot.Rm <- colMeans(boot.R)
+# Calculate Uppe and lower bonds  
   boot.Ru <- apply(boot.R,2,function(x) quantile(x,1-mp))
   boot.Rl <- apply(boot.R,2,function(x) quantile(x,mp))
   out <- data.frame(cbind(boot.s,boot.Ym,boot.Yu,boot.Yl,boot.Rm,boot.Ru,boot.Rl))
@@ -980,8 +1053,11 @@ b.YAg <- reactive({
   yg <- input$y1
   boot.s <- Y.boot()$boot.s 
   boot.Y <- as.matrix(Y.boot()$Y.boot)
-  boot.Yp <- apply(boot.Y,2,function(x) ifelse(x >yg,1,0))
-  boot.Yp <- colMeans(boot.Yp)
+# For each bootstrap, determin if expected yields exceed desired goal  
+  boot.Yb <- apply(boot.Y,2,function(x) ifelse(x >yg,1,0))
+# calculate mean: This is the same as probability   
+  boot.Yp <- colMeans(boot.Yb)
+  
   boot.Ym <- b.YA()$boot.Ym
   boot.Yu <- b.YA()$boot.Yu
   boot.Yl <- b.YA()$boot.Yl  
@@ -1226,7 +1302,7 @@ srplot <- function(){
   xp <- x/u
   SRp <- SRp()[,1:4]/u
   # Draw Base SR Plot
-  replayPlot(base.p())
+  replayPlot(base.plot.SR())
   # Add CI    
   if(input$show.int==TRUE){
     with(SRp,polygon(c(s,rev(s)),c(upr,rev(lwr)),col=tcol('grey',50),border=NA))
@@ -1258,12 +1334,11 @@ srplot <- function(){
   legend('topright',c(t1,t2),lty=c(l1,l2),bty='n')    
 }
 
-output$p <- renderPlot({ srplot()})
+output$plot.SR <- renderPlot({ srplot()})
 
 output$down <- downloadHandler(
   filename = function() {
     paste("myreport","png", sep = ".")
-#    paste("myreport", input$report, sep = ".")
   },
   content = function(file){
 #    if(input$report == "png")
@@ -1279,14 +1354,14 @@ output$down <- downloadHandler(
 #-----------------------------------------------------------------------
 #  SR Yield plot 
 #-----------------------------------------------------------------------
-output$py <- renderPlot({
+output$plot.Yield <- renderPlot({
   u <- as.numeric(input$ui)
   x <- sr.data()
   par <-SR.out()
   SRp <- SRp()[,1:4]/u
   xp <- x/u
 # Plot base Yiled plot
-  replayPlot(base.py())
+  replayPlot(base.plot.Yield())
 # Add CI    
   if(input$show.int==TRUE){
   with(SRp,polygon(c(s,rev(s)),c(upr-s,rev(lwr-s)),col=tcol('grey',50),border=NA))
@@ -1325,12 +1400,12 @@ output$py <- renderPlot({
 #  Plot time serise
 #-----------------------------------------------------------------------  
 output$srt <- renderPlot({
-  x <- sr.data()
+  x <- sr.data.0()
   u <- as.numeric(input$ui)
   mult <- mult()
   par(yaxs='i',bty='l')
   plot(R/u~Yr,data=x,type='l',ylim=c(0,with(x,max(R,S)/u)),
-       main=input$caption,
+#       main=input$caption,
        xlab='Brood Year',
        ylab=paste('Spawner / Recruit',mult))
   lines(S/u~Yr,data=x,lty=2)
@@ -1339,6 +1414,11 @@ output$srt <- renderPlot({
   with(x,polygon(c(Yr,rev(Yr)),c(rep(input$egl/u,length(Yr)),rev(rep(input$egu/u,length(Yr)))),col=tcol('grey',50),border=NA))
   }
   legend('topright',c('Spawner','Recruit'),lty=c(2,1),box.lty=0)  
+  # Add Escapement Goal range  
+  if(input$sryears[1]>min(x$Yr)|input$sryears[2]>max(x$Yr)){
+    abline(v=input$sryears[1],col=2) 
+    abline(v=input$sryears[2],col=2)  
+    }
 })
 
 output$runesc <- renderPlot({
@@ -1348,7 +1428,7 @@ output$runesc <- renderPlot({
   mult <- mult()
   par(yaxs='i',bty='l')
   plot(R/u~Yr,data=x,type='l',ylim=c(0,with(x,max(R,S)/u)),
-       main=input$caption,
+#       main=input$caption,
        xlab='Year',
        ylab=paste('Run / Escapement',mult))  
   # Add Escapement Goal range  
@@ -1488,7 +1568,7 @@ output$byield <- renderPlot({
  }) 
 
 # Print Escapement Goal Range
-output$byt <-renderText({
+output$by<- renderText({
      mp <- input$p.i
      u <- as.numeric(input$ui)
      BEG.l <- u*round(b.YAg()$BEG.l/u)
@@ -1998,7 +2078,7 @@ output$runsim <- renderPlot({
   mult <- mult()
   par(xaxs='i',yaxs='i',bty='l')
   plot(nyrs,N/u,type='l',ylim=c(0,max(N))/u,col=1,
-       main=input$caption,
+#       main=input$caption,
        xlab='Year',
        ylab=paste('Run / Escapement',mult))
   lines(nyrs,S/u,lty=2,col=2)

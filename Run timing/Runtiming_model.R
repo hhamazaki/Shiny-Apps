@@ -51,7 +51,7 @@ actionButton("Run","Run")
       tabPanel("Table",    
                h4("Passage timing data: Date (day-month), counts by year"),
                tableOutput("table")),
-      tabPanel("inits",
+      tabPanel("model",
                verbatimTextOutput('test')
           )  # End tabPanel
         )  # End tabsetPanel
@@ -272,9 +272,7 @@ inits <- reactive({
 #-----------------------------------------------------------------------
 #  1.4: Create Initial Parameters 
 #-----------------------------------------------------------------------
- output$test <- renderPrint({
-  inits()
- })
+
 
 #-----------------------------------------------------------------------
 #  1.3: Create Hyper Parameter priors  
@@ -515,6 +513,16 @@ jag.model.nb <- function(){
 #=======================================================================
 #  End of JAG Model Code 
 #=======================================================================
+Bayesmodel <- reactive({
+  #  JAGS model selection 
+  if(input$Er=='Normal'){jagmodel <- jag.model.n}
+  if(input$Er=='Poisson'){jagmodel <- jag.model.p}
+  if(input$Er=='Negative Binomial'){jagmodel <- jag.model.nb}
+  return(jagmodel)
+  })
+output$test <- renderPrint({
+  Bayesmodel()
+})
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Pane 2: Run JAG Model 
