@@ -1,2 +1,3 @@
 # Shiny-Apps
-This creates Shiny Apps for Spawner-recruit analyses 
+This site hosts a colleciton of ADFG salmon stock assessment Shiny Apps 
+
