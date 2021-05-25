@@ -1,0 +1,13 @@
+name: Spawner_Recruit
+title: Spawner_Recruit
+username:
+account: hamachan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 805277
+bundleId: 2835900
+url: https://hamachan.shinyapps.io/Spawner_Recruit/
+when: 1582846441.98522
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|app.R|Data_input.R|MSE.r|Presentation1.pptx|Shiny Model.docx|Spawner_Recruit2.R|SR_model.R|SR_model_Bayes.R|SR_model_RStan.R|SR_model_Run_brood.R|SR_model_Run_brood_switch_Bayesian.R|SR_model_Run_brood_switch_o.R|SRmodel_ggplot.R|SRnote.R|SRnote2.R|test.R

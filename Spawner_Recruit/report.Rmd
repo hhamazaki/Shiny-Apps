@@ -1,0 +1,11 @@
+
+Here is my regression model:
+
+Below is a scatter plot with the regression line.
+
+``````{r, context="render", echo=FALSE}
+par(cex=0.1)
+srplot()
+```
+
+
