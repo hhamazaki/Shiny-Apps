@@ -24,9 +24,7 @@ library(coda)         # used to read MCMC data
 library(R2jags)       # used to run JAGS
 library(openxlsx)     # used for creating EXCEL output table  
 
-
-options(scipen=999)
-
+options(scipen=999)   # Do not show Scientific notation
 source("Shiny_modules.R")
 source("Shiny_SR_functions.R")
 source("Shiny_Bayes_modules.R")
@@ -37,11 +35,11 @@ ui<-fluidPage(
  navbarPage(
     theme =  bs_theme(version = 3, bootswatch = 'cerulean'), id = "tabs",
     title = div(
-        img(src="picture2.png",height=40, width=40)
+        img(src="Picture2.png",height=40, width=40)
         , "Pacific Salmon Escapement Goal Analyses"),
-#-------------------------------------------------------------------------------
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Panel 1:  Data Input and Submit 
-#-------------------------------------------------------------------------------
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #navbarMenu("Data Input & Bayes model",
   tabPanel("Data Input",
    sidebarPanel(width = 3,
@@ -74,11 +72,10 @@ conditionalPanel(condition="input.dataType== 'Run'",
 #------------------ Show Input data --------------------------------------------      
       tabPanel("Table",  
                strong(uiOutput('note')),
-               dataTableOutput("Tbl_data")),
+               dataTableOutput('Tbl_data')),
 #------------------ Brood Table ------------------------------------------------      
       tabPanel("Brood Table",
                 dataTableOutput("Tbl_data.brood")
-               # Horizontal line ----
                   ),
 #------------------ Time Series ------------------------------------------------
       tabPanel("Time Series",
@@ -93,20 +90,20 @@ conditionalPanel(condition="input.dataType== 'Run'",
              ),
       tabPanel("Help",
                (               
-               includeMarkdown("Input_help.md")
+               includeMarkdown("documents/Input_help.md")
                )
           )  # End tabPanel
         )  # End tabsetPanel
       )  # End mainPanel
      ), # End tabpanel
-#-------------------------------------------------------------------------------    
-# tabPanel Escapement Only Analyses 
-#-------------------------------------------------------------------------------    
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  Panel 2 Escapement Only Analyses 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    
 tabPanel("Escapement Only Analyses",
     sidebarPanel(width = 3,
       conditionalPanel(condition="input.ePanel == 'Percentile Analyses'",  
         p(strong("Percentile Analyses")),
-        PercentileUI("prcnt"),
+        PercentileUI("prcnt"),   # Percentile Analyses Module
         (htmlOutput("Txt_Tier")),
               hr(),
         (htmlOutput("Txt_Note"))
@@ -115,7 +112,7 @@ tabPanel("Escapement Only Analyses",
         p(strong("Risk Analyses")), 
         strong(textOutput("Txt_Risk_Model")),
               hr(),
-        RiskUI("risk"),
+        RiskUI("risk"),   # Risk Analyses Module
 #        strong(htmlOutput('Txt_Risk'))
                  ) # End conditionalPanel
           ), #End SidbarPanel
@@ -134,17 +131,17 @@ tabPanel("Escapement Only Analyses",
           verbatimTextOutput('Txt_dwtest')
             ), #End tabPanel: Risk
       tabPanel("Help",
-  withMathJax(               
-           includeMarkdown("ESC_Analyses_help.md")
-             )
+          withMathJax(               
+            includeMarkdown("documents/ESC_Analyses_help.md")
+              )
             ), #End tabPanel: Help
           id = "ePanel"
            )#End tabsetPanel
          )#End main Panel 
   ),#End tabPanel Escapement only Analysis 
-#-------------------------------------------------------------------------------
-#  Panel 2  Data Analyses 
-#-------------------------------------------------------------------------------
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  Panel 3  Data Analyses 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #navbarMenu("SR Model Analyses",
   tabPanel("SR Model",
     sidebarPanel(width = 3,
@@ -215,7 +212,7 @@ tabPanel("Escapement Only Analyses",
             ),#End tabPanel: Model Code
 tabPanel("Help",
          withMathJax(               
-           includeMarkdown("JAGS_help.md")
+           includeMarkdown("documents/JAGS_help.md")
          )
 #         downloadButton("downloadData", label = 'Download'),
 #         dataTableOutput("temp")
@@ -227,13 +224,13 @@ tabPanel("Help",
 
 #   ),#End nabVarMenu
 
-#-----------------------------------------------------------------------
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Panel 3: Escapement Goal Analyses 
-#-----------------------------------------------------------------------
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 navbarMenu("Escapement Goal Analyses",
-#------------------------------------------------------------------------    
+#-------------------------------------------------------------------------------    
 #  tabPanel: Smsy-Smax Goal Analyses 
-#------------------------------------------------------------------------    
+#-------------------------------------------------------------------------------    
   tabPanel("Smsy & Smax Goal Analyses",      
     sidebarPanel(width = 3,
        ProfileUI('smsy','MSY'),
@@ -261,16 +258,16 @@ navbarMenu("Escapement Goal Analyses",
               ), #End tabPanel: Goal 
         tabPanel("Help",
                  withMathJax(               
-                   includeMarkdown("Profile_help.md")
+                   includeMarkdown("documents/Profile_help.md")
                  )
                 ) #End tabPanel: Help  
             )#End tabsetPanel
         )#End mainPanel
       ),#End tabPanel: Smsy Goal Analyses 
  
-#------------------------------------------------------------------------    
+#-------------------------------------------------------------------------------    
 #  tabPanel Recruit & Yield Goal Analyses 
-#------------------------------------------------------------------------    
+#-------------------------------------------------------------------------------    
   tabPanel("Yield & Recruit Goal Analyses",
     sidebarPanel(width = 3,
       conditionalPanel(condition="input.cPanel == 'Recruit Goal Analyses'",  
@@ -302,7 +299,7 @@ navbarMenu("Escapement Goal Analyses",
           ),# End tabPanel
         tabPanel("Help",
           withMathJax(               
-            includeMarkdown("Yield_Recruit_help.md")
+            includeMarkdown("documents/Yield_Recruit_help.md")
             )        
         ),# End tabPanel
         id = "cPanel"
@@ -345,7 +342,7 @@ navbarMenu("Escapement Goal Analyses",
 #                    )
         ), #End tab Panel
                  
-#------------------ Expected Mean Recruit and Yields ----------------------------------   
+#------------------ Expected Mean Recruit and Yields ---------------------------   
         tabPanel("Expected Mean & Annual Yield",
           plotOutput(height = '300px', 'Plt_yield.cg'),      
           plotOutput(height='300px',"EGR.Yield"),
@@ -356,7 +353,7 @@ navbarMenu("Escapement Goal Analyses",
               verbatimTextOutput("Txt_Yield_cg"),
               verbatimTextOutput("Txt_Yield_pb_cg"))
           ), #End tab Panel
-#------------------ Recruit Annual Recruit and Yields ---------------------------------   
+#------------------ Recruit Annual Recruit and Yields --------------------------   
         tabPanel("Expected Mean & Annual Recruit",
           plotOutput(height = '300px', 'Plt_rec.cg'),         
           plotOutput(height='300px',"EGR.Rec"),
@@ -500,7 +497,7 @@ navbarMenu("MSE Analyses",
         tabsetPanel(
 #------------------ Model Structure  -------------------------------------------             
               tabPanel("Model description",
-                       includeMarkdown("MSE_help.md")
+                       includeMarkdown("documents/MSE_help.md")
                       ),  #End tabPanel
 #------------------ Parameters Description ---------------------------------             
               tabPanel("Base model Parameters",
