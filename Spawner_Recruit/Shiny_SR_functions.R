@@ -13,12 +13,10 @@ make.brood <- function(data,fage){
   fage <- as.numeric(fage)
   # nage is the number of reutn ages 
   # Specifying that first age starts from 4th column and the last column is the 
-  # last age, number of ages are the number of colums from 4th col to the last col
+  # last age, number of ages are the number of columns from 4th col to the last col
   nages <- dim(data)[2]-3
   # lage is the lastreutn ages  
   lage <- fage+nages-1
-  # Standardize the run age proporiton, so that sum of proportion is exactly 1    
-  p <- data[,-c(1:3)]/rowSums(data[,-c(1:3)])
   # Calculate maximum brood year range: 
   # Minimum year is first year return 
   yr <- seq(min(data[,1])-lage,max(data[,1]))
@@ -29,21 +27,33 @@ make.brood <- function(data,fage){
   # Second column is Escapment by year   
   brood[,2] <- c(rep(NA,lage),data[,2])
   # 3rd to the last columns are brood year return by age    
-  for(i in 1:nages){
-    brood[,i+2] <- c(rep(NA,lage-fage+1-i),p[,i]*data[,3],rep(NA,fage+i-1))
-  }
+  # Standardize the run age proporiton, so that sum of proportion is exactly 1    
+  if(nages ==1){
+    p <- data[,-c(1:3)]/data[,-c(1:3)]  
+    brood[,3] <- c(rep(NA,lage-fage),p*data[,3],rep(NA,fage))
+    } else { 
+    p <- data[,-c(1:3)]/rowSums(data[,-c(1:3)])
+    for(i in 1:nages){
+      brood[,i+2] <- c(rep(NA,lage-fage+1-i),p[,i]*data[,3],rep(NA,fage+i-1))
+    }
+    }
   # Change to data.frame 
   brood <- data.frame(brood)
   # Name all columns 
   names(brood) <- c('b.Year','Spawner',paste0('b.Age',seq(fage,lage)))
   # Recruit is sum of brood year return by age 
+  if(nages==1){
+    brood$Recruit <- brood[,-c(1:2)]
+  } else {
   brood$Recruit <- rowSums(brood[,-c(1:2)])
+  }
   # Create SR data 
   SR <- brood[complete.cases(brood),c('b.Year','Spawner','Recruit')]
   out <- list(brood=brood,SR=SR)
   # Output data is a list data    
   return(out)
 }
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  1.2  cut.data: Cut data based on specified years
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -52,7 +62,6 @@ make.brood <- function(data,fage){
    return(x)
  }
 
- 
 #===============================================================================
 #  2.0  Percentile Method 
 #===============================================================================
@@ -134,56 +143,77 @@ Plot_prcnt <- function(tier,e.data,EG,u){
   legend('topright',legend=txt,col=c(3,4,5), lty=2, bty ='n')  
  }
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  2.5  Summary function  
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+sum.fun <- function(x,ci){
+  p <- (100-ci)/200
+  min <- sapply(x,min, na.rm=TRUE)
+  max <- sapply(x,max, na.rm=TRUE)
+  lci <- sapply(x,quantile, prob=p, na.rm=TRUE)
+  uci <- sapply(x,quantile, prob=1-p, na.rm=TRUE)
+  mean <- sapply(x,mean, na.rm=TRUE)
+  median <- sapply(x,median, na.rm=TRUE)
+  out <- rbind(min,lci,mean,median,uci,max)
+  rownames(out) <- c('Min',paste0(100*p,'%'),'Mean','Median',paste0(100*(1-p),'%'),'Max')
+  return(out)
+ }
 
 
 #===============================================================================
-# 2.0  sim.out: Read model specification and simulation data, 
+# 3.0  Simulation functions: Read model specification and simulation data, 
 #      calculate simulated SEQ, Smsy, Umsy, Smax
 #      Clean up simulation results
 #===============================================================================
+#-------------------------------------------------------------------------------
+# remove.out: remove outliers   
+#-------------------------------------------------------------------------------
+remove.out <- function(x){
+  out <- boxplot(x, plot=FALSE)$out
+  r <- -which(x %in% out)
+  return(r)
+}
+
+#-------------------------------------------------------------------------------
+# sim.out: Read MCMC data, remove outliers, and calculate biological reference 
+# sim:  JAG MCMC 
+# d:  multiplier 
+# model:  SR model specification 
+# add:  model addition (AR1, TVA)
+# model.br: biological reference calculation funciton
+#-------------------------------------------------------------------------------
 sim.out <- function(sim,d,add,model,model.br){
-  #D is multiplier.   
+#D is multiplier.   
   D <- as.numeric(d)
-  # sim should include followings: 'lnalpha','beta', lnalphai
+# sim should include followings: 'lnalpha','beta', lnalphai
   post <- as.data.frame(sim)
-  if(add=='kf'){
+# 
+    if(add=='kf'){
+# for TVA model calculate median lnalphai and simga.lnalpha
     post$lnalpha <- apply(post[,grep(pattern='lnalphai',names(post),value=TRUE)],1, FUN=median, na.rm=TRUE)
+    post$sigma.lnalpha <- apply(post[,grep(pattern='lnalphai',names(post),value=TRUE)],1, FUN=sd, na.rm=TRUE)
     }
-  post$alpha <- exp(post$lnalpha)
-# Calculate Seq, Smsy, Umsy, Smax    
-#  post <- data.frame(post,model.br(post$lnalpha,post$beta,D)) 
+    post$alpha <- exp(post$lnalpha)
+# Calculate Mean R adjustment     
+  if(add=='ar1'){
+    post$lnalpha.c <- post$lnalpha+0.5*(post$sigma^2)/(1-post$phi^2)
+    } else {post$lnalpha.c <- post$lnalpha+0.5*post$sigma^2}
+   post$alpha.c <- exp(post$lnalpha.c)
   
 #-------------------------------------------------------------------------------
-# Ricker model 
+# Create Biological reference points
 #-------------------------------------------------------------------------------
-
-   if(model =='Ricker')
-  {
-    post$Seq <- with(post,lnalpha/beta)*(10^D)
-    post$Smsy <- with(post,Seq*(0.5-0.07*lnalpha))
-    post$Umsy <- with(post,lnalpha*(0.5-0.07*lnalpha))
-    post$Smax <- with(post,1/beta)*(10^D)
-  }
+   br <- with(post,model.br(lnalpha,beta,D))
+   br.c <- with(post,model.br(lnalpha.c,beta,D))
+   post$Seq <- br$Seq
+   post$Smsy <- br$Smsy
+   post$Umsy <- br$Umsy
+   post$Seq.c <- br.c$Seq
+   post$Smsy.c <- br.c$Smsy
+   post$Umsy.c <- br.c$Umsy
+   post$Smax <- br$Smax
 #-------------------------------------------------------------------------------
-# Beverton Holt model 
-#-------------------------------------------------------------------------------
-  if(model =='Beverton-Holt')
-  {
-    post$Seq <- with(post,(alpha-1)/beta)*(10^D)
-    post$Smsy <- with(post,(sqrt(alpha)-1)/beta)*(10^D)
-    post$Umsy <- with(post, 1-sqrt(1/alpha))
-    post$Smax <- NA
-  }
-#-------------------------------------------------------------------------------
-# Outlier removing function  
-#-------------------------------------------------------------------------------
-  remove.out <- function(x){
-    out <- boxplot(x, plot=FALSE)$out
-    r <- -which(x %in% out)
-    return(r)
-  }
-#-------------------------------------------------------------------------------
-# Remove outliers  
+# Remove outlier  
 #-------------------------------------------------------------------------------
   # Remove obvious outlier data   
   post <- post[post$beta>0,]
@@ -193,54 +223,55 @@ sim.out <- function(sim,d,add,model,model.br){
   if(length(remove.out(post$Seq))>0) post <- post[remove.out(post$Seq),] 
   if(length(remove.out(post$Smax))>0) post <- post[remove.out(post$Smax),] 
   return(post)
-}
+}  # End sim.out
 
-#===============================================================================
-# 3.0  plot_denisty: Read simulation data and plot SR Density plots
-# Plot MCMC density plots of alpha, beta, phi, Seq, Smsy, UmsY, Smax 
-#===============================================================================
-plot_density <- function(sim,D,ar1,model='Ricker'){
-  par(mfrow=c(2,4),mar = c(1.75,1.5,1.5,1.75),xaxs='i',yaxs='i',bty='l')
-  plot(density(sim$alpha),main='alpha',xlab='',ylab='')
-  plot(density(sim$beta),main=paste0('beta',' x 10^(',-D,')'),xlab='',ylab='')
-  if(ar1==TRUE){
-    plot(density(sim$phi),main='Phi',xlab='',ylab='')
-  }
-  plot(density(sim$Seq), main='SEQ',xlab='',ylab='')
-  plot(density(sim$Smsy),main='Smsy',xlab='',ylab='')
-  plot(density(sim$Umsy), main='Umsy',xlab='',ylab='')
-  # Smax esists only Ricker SR model.   
-  if(model=='Ricker'){
-    plot(density(sim$Smax), main='Smax',xlab='',ylab='')
-  }
-}
-
-#===============================================================================
+#-------------------------------------------------------------------------------
 # 4.0  SR.pred.sim:  Read simulation data, and create  
-#   Create predicted Recruit and Yied (CI,PI) at given S
-#===============================================================================
-SR.pred.sim <-function(SRpar,D,max.s,srmodel){
-#---------- Extract MCMC SR Model Parameters ---------------------------------
-  lnalpha <-SRpar$lnalpha
+#   Create predicted Recruit and Yield (CI,PI) at given S
+#-------------------------------------------------------------------------------
+SR.pred.sim <-function(SRpar,D,max.s,srmodel,add, target){
+#---------- Extract MCMC SR Model Parameters -----------------------------------
+# Mean or Median prediction-----------------------------------------------------  
+  if(target=='me'){
+    lnalpha.m <- SRpar$lnalpha.c
+  } else {
+    lnalpha.m <- SRpar$lnalpha        
+  }
+  
+  lnalpha <- SRpar$lnalpha 
   beta <- SRpar$beta
-  sigma <- SRpar$sigma
-  # This makes largest numbers into integer (e.g. 100000)
+# Extract sigma-----------------------------------------------------------------  
+  if(add == 'ar1'){
+    sigma <- with(SRpar, sqrt(sigma^2/(1-phi^2)))
+  } else if(add == 'kf'){
+    sigma <- with(SRpar, sqrt(sigma^2+sigma.lnalpha^2))
+    #    sigma <- SRpar$sigma
+  } else {
+    sigma <- SRpar$sigma
+  }
+  
+# Calculate maximum S in interger 
   maxb <- ceiling(max.s/(10^D))*(10^D)
-  # Cut into 201 segments (can be increased) 
+# Cut into 201 segments (can be increased)
+# This allows each number be integer   
   S <- seq(0,maxb, length.out=201) 
+# Get the number of simulation (row)  
   nrow <- length(lnalpha)  
-  # Create Expected mean and observed Recruit MCMC matrix    
+# Create Expected mean and observed Recruit MCMC matrix    
   mc.R <- matrix(NA,nrow=nrow,ncol=201)   # Model expected recruit -------------
   mc.R.p <- matrix(NA,nrow=nrow,ncol=201) # Model expected observed recruit-----
-#---------- Calculate expecte rueturns from each MCMC ------------------------ 
+#---------- Calculate expected returns from each MCMC ------------------------ 
   for(i in 1:nrow){
-    # Calculated expected Returns form each MCMC SR model parameters   
-    mc.R[i,] <- srmodel(lnalpha[i],beta[i],S,D)
-    # mc.R.p adds observation error (sigma)  
-    mc.R.p[i,] <- exp(rnorm(201,log(mc.R[i,]),sigma[i]))
+    # Calculate expected Returns form each MCMC SR model parameters
+# mc.R is Median Recruit when target is Median, and Mean Recruit when target is Mean
+    mc.R[i,] <- srmodel(lnalpha.m[i],beta[i],S,D)
+# mc.R.p adds observation error (sigma): this case no lognormal correction is needed 
+    mc.R.p[i,] <- exp(rnorm(201,log(srmodel(lnalpha[i],beta[i],S,D)),sigma[i]))
   }  
-# Create expected mean and observed Yield matric
+# Create expected mean/median (mc.Y) and observed Yield (mc.Y.p) matrix
+#  Expected Median or Mean Yield
   mc.Y <-  t(t(mc.R)-S) 
+#  Expected Annual Yield
   mc.Y.p <-  t(t(mc.R.p)-S) 
 #------  Create Output list file -----------------------------------------------  
   out <- list()
@@ -252,37 +283,83 @@ SR.pred.sim <-function(SRpar,D,max.s,srmodel){
   return(out)
 }
 
-
-#===============================================================================
-# 4.1  Output Predicted Run and CI-PI   
-#  Create CI and PI range of Recruit and Yield
-#===============================================================================
+#-------------------------------------------------------------------------------
+# pred_CI: Create CI and PI range of Recruit and Yield
+# SR.pred: ouput of sim.out function 
+# CI: User derined CI % 
+#-------------------------------------------------------------------------------
 pred_CI<- function(SR.pred, CI) {
 #--- Import predicted data -----------------------------------------------------
   Pred <-SR.pred
 #--- User defined % interval range ---------------------------------------------  
   pci <- (100-CI)/200
-  # Model used S
+# Model used S
   S <- Pred$S
-  # Median RS 
-  RS.md <- apply(Pred$R,2,median)
-  # Mean RS
-  RS.me <- apply(Pred$R,2,mean)
-  # Calculate Lower and upper CI-PI
-  # Lower CI 
+# Median RS 
+  RS.md <- apply(Pred$R.p,2,median)
+# Mean RS (Trim mean)
+  RS.me <- apply(Pred$R.p,2,function(x) mean(x, trim=0.01))
+# Calculate Lower and upper CI-PI
+# Lower CI 
   Rl <- apply(Pred$R,2,function(x) quantile(x, pci))
-  # Upper CI   
+# Upper CI   
   Ru <-  apply(Pred$R,2,function(x) quantile(x, 1-pci))
-  # Lower PI   
+# Lower PI   
   Rl.p <- apply(Pred$R.p,2,function(x) quantile(x, pci))
-  # Upper PI    
+# Upper PI    
   Ru.p <- apply(Pred$R.p,2,function(x) quantile(x, 1-pci))
-  # Create dataframe   
+# Create dataframe   
   out <- data.frame(cbind(S,RS.md,RS.me,Rl,Ru,Rl.p,Ru.p))
-  # Name 
+# Name 
   names(out) <- c('S','RS.md','RS.me','Rl','Ru','Rl.p','Ru.p')
   return(out)
 }  
+
+#===============================================================================
+# 4.0  plotting functions: 
+#===============================================================================
+#-------------------------------------------------------------------------------
+# plot_density 
+# plot density distribution of MCMC results 
+#-------------------------------------------------------------------------------
+plot_density <- function(sim,D,ar1,model='Ricker',target='md'){
+  par(mfrow=c(2,4),mar = c(1.75,1.5,1.5,1.75),xaxs='i',yaxs='i',bty='l')
+  if(target =='me'){
+    plot(density(sim$alpha.c),main='alpha.c',xlab='',ylab='')
+    plot(density(sim$lnalpha.c),main='lnalpha.c',xlab='',ylab='')
+    plot(density(sim$Seq.c), main='Seq.c',xlab='',ylab='')
+    plot(density(sim$Smsy.c), main='Smsy.c',xlab='',ylab='')  
+    plot(density(sim$Umsy.c), main='Umsy.c',xlab='',ylab='')    
+  } else {
+    plot(density(sim$alpha),main='alpha',xlab='',ylab='')
+    plot(density(sim$lnalpha),main='lnalpha',xlab='',ylab='')
+    plot(density(sim$Seq), main='Seq',xlab='',ylab='')
+    plot(density(sim$Smsy),main='Smsy',xlab='',ylab='')
+    plot(density(sim$Umsy), main='Umsy',xlab='',ylab='')
+  }
+    plot(density(sim$beta),main=paste0('beta',' x 10^(',-D,')'),xlab='',ylab='')
+  if(ar1==TRUE){
+    plot(density(sim$phi),main='Phi',xlab='',ylab='')
+  }
+
+  # Smax esists only Ricker SR model.   
+  if(model=='Ricker'){
+    plot(density(sim$Smax), main='Smax',xlab='',ylab='')
+  }
+}
+
+
+
+#===============================================================================
+# 4.1 Prop range:  Create 
+#===============================================================================
+Prob.calc <- function(Y,gl){
+  # Import MCMC Expected mean Yields 
+  # Mean yields    
+  Yb <- apply(Y,2,function(x) ifelse(x >gl,1,0))
+  Ypm <- colMeans(as.matrix(Yb))  # mean yield
+  return(Ypm)
+ }
 
 #===============================================================================
 # 4.2  Cut out simulation output by specific range 
@@ -301,6 +378,33 @@ SR.cut <-function(SR.pred,Srange){
   out$Y <- Pred$Y[,SS]  
   out$Y.p <- Pred$Y.p[,SS]
   return(out)
+}
+
+
+Plt_prcnt <- function(data,EG,tier,u){
+  mult <- mult(u)
+  x <- data
+  if(tier == "Tier 1") { e.g <- EG[1,]
+  } else if(tier == "Tier 2") { e.g <- EG[2,]     
+  } else if(tier == "Tier 3") { e.g <- EG[3,]       
+  }
+  
+  par(yaxs='i',bty='l',las=1,xpd=TRUE)
+  plot(S/u~Yr,data=x,type='l',ylim=c(0,max(x$S)/u),xlab='',ylab='')
+  title("Escapement", xlab="Year",ylab=paste('Escapement',mult(u))) 
+  # Add Escapement Goal range  
+  polygon(with(x,c(min(Yr),max(Yr),max(Yr),min(Yr))),c(e.g[1]/u,e.g[1]/u,e.g[2]/u,e.g[2]/u),col=tcol(2,50),border=NA)
+  # Alternative: 
+  abline(h=EG[1,]/u,col = ifelse(tier == "Tier 1",2,3), lty=2,lwd=ifelse(tier == "Tier 1",2,1),xpd=FALSE)
+  abline(h=EG[2,]/u,col = ifelse(tier == "Tier 2",2,4), lty=2,lwd=ifelse(tier == "Tier 2",2,1),xpd=FALSE)
+  abline(h=EG[3,]/u,col = ifelse(tier == "Tier 3",2,5), lty=2,lwd=ifelse(tier == "Tier 3",2,1),xpd=FALSE)
+  # EG      
+  #  abline(h=e.g/u,col=2,lwd=2,xpd=FALSE)
+  lines(S/u~Yr,data=x)
+  txt <- c('Tier 1','Tier 2','Tier 3')
+  cols <- c(ifelse(tier == "Tier 1",2,3),ifelse(tier == "Tier 2",2,4),ifelse(tier == "Tier 3",2,5))
+  lwds <- c(ifelse(tier == "Tier 1",2,1),ifelse(tier == "Tier 2",2,1),ifelse(tier == "Tier 3",2,1))
+  legend('topright',legend=txt, inset=c(-0.2,0), col=cols, lwd=lwds,lty=2, box.lty=0)  
 }
 
 
@@ -329,15 +433,13 @@ tcol <- function(color, percent = 50, name = NULL) {
 
 
 #------ Show two density plots in one fig --------------------------------------
-mult.den.plt <- function(dat.a,dat.m,main.t,xlab.t){
+mult.den.plt <- function(dat.a,dat.m,main.tx,xlab.tx,leg.tx){
   d1 <- density(dat.a)
   d2 <- density(dat.m)
-  plot(d2,xlim =c(min(min(d1$x),0),max(d1$x)),axes = FALSE,main='',xlab='',ylab='')
-  par(new = TRUE)
-  # Mean estimate   
-  # Bootstrap estimate  
-  plot(d1, main=main.t,xlab=xlab.t, lty=2,ylab='')
-  legend('topright',c('Annual','Mean'), lty=c(1,2),bty='n')
+  plot(d1,xlim =c(min(d1$x),max(d1$x)),main=main.tx,xlab=xlab.tx,ylab='',lty=2)
+  par(new = TRUE)  
+  plot(d2 ,lty=1,xlim =c(min(d1$x),max(d1$x)),axes = FALSE,xlab='',ylab='',main='')
+  legend('topright',leg.tx, lty=c(2,1),bty='n')
 }
 
 #===============================================================================
@@ -405,6 +507,36 @@ plot_profile <- function(TN,prof,prof.st,S,mip,tp,u){
 }
 
 
+# Prof_fig  --- Profile summary plot  Function  ---------------------------------   
+
+Prof_fig <- function(prof,crit,u){
+# -------Extract Profile data  -------------------------------------------------
+  EG <- reactive({prof$EG()})
+  EG.st <- reactive({prof$EG.st()})
+  p.min <- reactive({prof$p.min()})   # Minimum goal 
+  p.t <- reactive({prof$p.t()})       # % achievement target
+  plt.profile <- reactive({prof$plt.profile()})
+  # Import minimum Smsy %
+  p.min <- as.numeric(p.min())/100
+  # Import minimum % achieving 
+  p.t <- as.numeric(p.t())/100  
+  replayPlot(plt.profile())
+  S <- EG()$S.Range/u
+  c.col <- ifelse(crit=='MSY',3,4)
+  polygon(c(S,rev(S)),c(c(0,0),c(1,1)),col=tcol(c.col,80),border=NA)
+  #  Add legends 
+  percent <- c(100*p.min,90,80,70)
+  apercent <- 100*p.t
+  BEG.st <- EG.st()$S.Range.st
+  BEG <- EG()$S.Range
+  lg <- c(BEG[1],BEG.st[,1])
+  ug <- c(BEG[2],BEG.st[,2])
+  txt <- c(paste(percent,'%',crit,apercent,'% target:',lg,' - ',ug))
+  legend("right", legend= txt, lwd=c(2,1,1,1), lty=c(1,1,2,4),
+         col=c(4,1,1,1),box.lty=0)
+}
+
+
 #===============================================================================
 # Management Strategy Evaluation simulation function 
 # MSE.sim  
@@ -424,7 +556,7 @@ plot_profile <- function(TN,prof,prof.st,S,mip,tp,u){
 # Upper:  Fishery opens when expected run exceeds Upper goal 
 FTA <-function(cmode,LEG,UEG){
   FT <- ifelse(
-  cmode =='Middle',mean(c(LEG,UEG)), # Fishery target: mid EG range 
+  cmode =='Middle', mean(c(LEG,UEG)), # Fishery target: mid EG range 
   ifelse(cmode =='Upper',UEG, # Fishery target: Upper EG range 
   LEG # Fishery target lower EG range}       
   ))
@@ -484,7 +616,7 @@ MSE.sim2 <- function(srmodel,lnalpha.i,beta,S0,D,e.Rec,e.p,e.pred,e.imp,LEG,UEG,
 # Fishery target is max harvest rate of surplus, or max harvest capacity    
       min(input$maxH,(N.pred-FT)*input$maxHr))
 # Actual Harvest: Harvest will not exceed N
-    H[y] <- min(H.target*e.imp[y],0.99*N[y])
+    H[y] <- min(H.target*e.imp[y]/N.pred, 0.99)*N[y]
     S[y] <- N[y] - H[y]
     # Escapement goal achievement 
     EG[y] <- ifelse(S[y]>input$LEG,1,0)

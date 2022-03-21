@@ -160,7 +160,7 @@ ProfileServer <- function(id,SR.pred,crit,u){
       S <- EG()$S
       Y.prof <- EG()$S.prof
       Y.prof.st <- EG.st()$S.prof.st
-      plot_profile(crit,Y.prof,Y.prof.st,S,p.min,p.t,u)
+      plot_profile(crit,Y.prof,Y.prof.st,S,p.min,p.t,as.numeric(u()))
       out1 <-recordPlot()
       return(out1)
     })
@@ -182,7 +182,7 @@ ProfPlotUI <- function(id,crit){
   # Display choice of Run vs S-R
   ns <- NS(id)
   tagList( 
-    plotOutput(height='400px',ns('Plt_prof')),
+    plotOutput(height='400px',width='700px',ns('Plt_prof')),
     )  # End taglist
   } # End ProfPlotUI
 
@@ -198,35 +198,37 @@ ProfPlotServer <- function(id,prof,crit,u){
       p.t <- reactive({prof$p.t()})       # % achievement target
       plt.profile <- reactive({prof$plt.profile()})
 # ------- Profile Plot --------------------------------------------------------- 
-  output$Plt_prof <- renderPlot({
-      # Import minimum Smsy %
-      p.min <- as.numeric(p.min())/100
-      # Import minimum % achieving 
-      p.t <- as.numeric(p.t())/100  
-      # Import S,   
-#      S <- EG()$S
-#      Y.prof <- EG()$S.prof
-#      Y.prof.st <- EG.st()$S.prof.st
-#      plot_profile(crit,Y.prof,Y.prof.st,S,p.min,p.t,u)
-    replayPlot(plt.profile())
-      S <- EG()$S.Range/u
-      c.col <- ifelse(crit=='MSY',3,4)
-      polygon(c(S,rev(S)),c(c(0,0),c(1,1)),col=tcol(c.col,80),border=NA)
-#  Add legends 
-      percent <- c(90,80,70,100*p.min)
-      apercent <- 100*p.t
-      BEG.st <- EG.st()$S.Range.st
-      BEG <- EG()$S.Range
-      lg <- c(BEG.st[,1],BEG[1])
-      ug <- c(BEG.st[,2],BEG[2])
-      txt <- c(paste(percent,'%',crit,apercent,'% target:',lg,' - ',ug))
+      output$Plt_prof <- renderPlot({
+        # Import minimum Smsy %
+        p.min <- as.numeric(p.min())/100
+        # Import minimum % achieving 
+        p.t <- as.numeric(p.t())/100  
+        # Import S,   
+        #      S <- EG()$S
+        #      Y.prof <- EG()$S.prof
+        #      Y.prof.st <- EG.st()$S.prof.st
+        #      plot_profile(crit,Y.prof,Y.prof.st,S,p.min,p.t,u)
+        replayPlot(plt.profile())
+        S <- EG()$S.Range/u
+        c.col <- ifelse(crit=='MSY',3,4)
+        polygon(c(S,rev(S)),c(c(0,0),c(1,1)),col=tcol(c.col,80),border=NA)
+        #  Add legends 
+        percent <- c(90,80,70,100*p.min)
+        apercent <- 100*p.t
+        BEG.st <- EG.st()$S.Range.st
+        BEG <- EG()$S.Range
+        lg <- c(BEG.st[,1],BEG[1])
+        ug <- c(BEG.st[,2],BEG[2])
+        txt <- c(paste(percent,'%',crit,apercent,'% target:',lg,' - ',ug))
         legend("right", legend= txt, lwd=c(1,1,1,2), lty=c(1,2,4,1),
                col=c(1,1,1,4),box.lty=0)
-      })    
+      })
     } # End function 
   ) # End moduleServer
 } # End ProfPlotServer
 #===============================================================================
+
+
 
 
 #===============================================================================
@@ -272,16 +274,16 @@ RiskServer <- function(id,e.data,u){
           sig <- sqrt(unname(arima_mod$sigma2))
         } else {
           phi <- 0
-          mu <- mean(x$lnS)
-          sig <-sd(x$lnS)
+          mu <- mean(x$lnS,na.rm=TRUE)
+          sig <-sd(x$lnS,na.rm=TRUE)
         }
         model.choice <- paste("Simulation:",
                               ifelse(dw$p.value < 0.05,"AR1","Standard"),"Model")
         cc <- mu*(1-phi)
         sigc <- sig*sqrt((n+1)/n)
         # This makes largest numbers into integer (e.g. 100000)
-        D <- floor(log10(mean(x$S)))
-        maxb <- ceiling(mean(x$S)/(10^D))*(10^D)
+        D <- floor(log10(mean(x$S,na.rm=TRUE)))
+        maxb <- ceiling(mean(x$S,na.rm=TRUE)/(10^D))*(10^D)
         # Cut into 501 segments (can be increased) 
         S <- seq(0,maxb, length.out=501)
         # change 0 to 1  
@@ -350,7 +352,7 @@ RiskServer <- function(id,e.data,u){
       delta <- Risk_sim()$delta
       e.g <- Risk_sim()$int.S
       par(xaxs='i',yaxs='i',bty='l')
-      plot(x/u, pi[,ncol(pi)], type='l', ylim=0:1, lwd=2, 
+      plot(x/u, pi[,ncol(pi)], las=1, type='l', ylim=0:1, lwd=2, 
            xlab=paste('Escapement',mult), ylab="Estimated Risk")
       for(j in 1:(length(delta)-1)) lines(x/u, pi[,j], col=j)
       lines(x/u,pi[,length(delta)], lwd=2,col=2) 
@@ -363,8 +365,8 @@ RiskServer <- function(id,e.data,u){
 #-------------------------------------------------------------------------------
   Plt_risk2 <- function(){
       x <- e.data()      
-      par(yaxs='i',bty='l')
-      plot(S/u~Yr,data=x,type='l',ylim=c(0,with(x,max(S)/u)),xlab='',ylab='')
+      par(yaxs='i',bty='l',las=1)
+      plot(S/u~Yr,data=x,type='l',ylim=c(0,with(x,max(S,na.rm=TRUE)/u)),xlab='',ylab='')
       title("Escapement", xlab="Year",
             ylab=paste('Escapement',mult(u))) 
       # Add Escapement Goal range  
@@ -403,7 +405,7 @@ PercentileUI <- function(id){
   }
 
 # Output Module ----------------------------------------------------------------
-PercentileServer <- function(id,e.data,u){
+PercentileServer <- function(id,e.data){
   moduleServer(
     id,
     function(input, output, session){
@@ -439,9 +441,9 @@ Txt_Tier <- reactive({
 EGS <- reactive({
   S <- e.data()$S
   # Percentile Analyses in 3 Tiers 
-  e.g.1 <- (quantile(S,c(0.2,0.6)))   #Tier 1
-  e.g.2 <- (quantile(S,c(0.15,0.65))) #Tier 2
-  e.g.3 <- (quantile(S,c(0.05,0.65))) #Tier 3
+  e.g.1 <- (quantile(S,c(0.2,0.6),na.rm=TRUE))   #Tier 1
+  e.g.2 <- (quantile(S,c(0.15,0.65),na.rm=TRUE)) #Tier 2
+  e.g.3 <- (quantile(S,c(0.05,0.65),na.rm=TRUE)) #Tier 3
   e.g <- data.frame(rbind(e.g.1,e.g.2,e.g.3))
   names(e.g) <- c('EGL','EGU')
   return(e.g)
@@ -451,26 +453,30 @@ EGS <- reactive({
 # Plt_prcnt:  Plot Percentile  
 #-------------------------------------------------------------------------------  
 Plt_prcnt <- function(){
+  mult <- mult(u)
   EG <- EGS()
   x <- e.data()
   if(input$Tiers == "Tier 1") { e.g <- EG[1,]
   } else if( input$Tiers == "Tier 2") { e.g <- EG[2,]     
   } else if(input$Tiers == "Tier 3") { e.g <- EG[3,]       
   }
-  # Graphics     
-  par(yaxs='i',bty='l')
-  plot(S/u~Yr,data=x,type='l',ylim=c(0,max(x$S)/u),
-       main = 'Escapement', xlab='Year',ylab=paste('Escapement',mult(u)))
+  # Graphics    
+  par(yaxs='i',bty='l',las=1,xpd=TRUE,mar=c(4,4,4,8))
+  plot(S/u~Yr,data=x,type='l',ylim=c(0,max(x$S,na.rm=TRUE)/u),xlab='',ylab='')
+  title("Escapement", xlab="Year",ylab=paste('Escapement',mult(u))) 
   # Add Escapement Goal range  
+  polygon(with(x,c(min(Yr),max(Yr),max(Yr),min(Yr))),c(e.g[1]/u,e.g[1]/u,e.g[2]/u,e.g[2]/u),col=tcol(2,50),border=NA)
   # Alternative: 
-  abline(h=EG[1,]/u,col = 3, lty=2)
-  abline(h=EG[2,]/u,col = 4, lty=2)
-  abline(h=EG[3,]/u,col = 5, lty=2)
-  polygon(with(x,c(min(Yr-2),max(Yr+2),max(Yr+2),min(Yr-2))),c(e.g[1],e.g[1],e.g[2],e.g[2]),col=tcol(2,50),border=NA)
+  abline(h=EG[1,]/u,col = ifelse(input$Tiers == "Tier 1",2,3), lty=2,lwd=ifelse(input$Tiers == "Tier 1",2,1),xpd=FALSE)
+  abline(h=EG[2,]/u,col = ifelse(input$Tiers == "Tier 2",2,4), lty=2,lwd=ifelse(input$Tiers == "Tier 2",2,1),xpd=FALSE)
+  abline(h=EG[3,]/u,col = ifelse(input$Tiers == "Tier 3",2,5), lty=2,lwd=ifelse(input$Tiers == "Tier 3",2,1),xpd=FALSE)
   # EG      
-  abline(h=e.g/u,col=2,lwd=2)
+#  abline(h=e.g/u,col=2,lwd=2,xpd=FALSE)
+  lines(S/u~Yr,data=x)
   txt <- c('Tier 1','Tier 2','Tier 3')
-  legend('topright',legend=txt,col=c(3,4,5), lty=2, box.lty=0)  
+  cols <- c(ifelse(input$Tiers == "Tier 1",2,3),ifelse(input$Tiers == "Tier 2",2,4),ifelse(input$Tiers == "Tier 3",2,5))
+  lwds <- c(ifelse(input$Tiers == "Tier 1",2,1),ifelse(input$Tiers == "Tier 2",2,1),ifelse(input$Tiers == "Tier 3",2,1))
+  legend('topright',legend=txt, inset=c(-0.2,0), col=cols, lwd=lwds,lty=2, box.lty=0)  
 }
 
 #-------------------------------------------------------------------------------
@@ -486,20 +492,24 @@ Txt_Note <- reactive({
     }
     
     txt <- HTML(paste(paste(input$Tiers,"Escapement goal range"),
-               paste("Escapement Contrast:",contrast),
-               paste0(round(e.g[1],0)," - ",round(e.g[2],0)),sep = '<br/>'))
+                  paste0(round(e.g[1],0)," - ",round(e.g[2],0)),
+                  paste("Escapement Contrast:",contrast),
+                  sep = '<br/>'))
     return(txt)
   })
+
+ Tier <- reactive({input$Tiers})
 #-------------------------------------------------------------------------------
 # Module Outputs: Txt_Tier, Txt_Note, Plt_prcnt 
 #-------------------------------------------------------------------------------
-outdata <- list(Txt_Tier =Txt_Tier, Plt_prcnt = Plt_prcnt, 
+outdata <- list(Txt_Tier =Txt_Tier, Tier=Tier, EGS = EGS, 
                 Txt_Note=Txt_Note)
 return(outdata)      
 
     } # End function 
   ) # End moduleServer
 } # End prcntoutServer
+
 
 
 
@@ -678,9 +688,6 @@ return(outdata)
     } # End function 
   ) # End moduleServer
 } # End MSEServer
-
-
-
 
 
 #===============================================================================

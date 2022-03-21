@@ -1,5 +1,9 @@
 ### Running Bayesian SR model 
-Bayesian SR Analysis model is coded in **JAGS** (see Model Codes Tab). SR models included are **Ricker** and **Beverton-Holt** with options of **AR(1) Error** and **Time varying alpha (TVA)**  
+Bayesian SR Analysis model is coded in **JAGS** (see Model Codes Tab). The major difference between traditional (Frequent) and Bayesian statistics is the concept of point estimate. Traditional (Frequent) statistics assumes that observed data are derived from **single TRUE** parameters (e.g., mean) with observation error. In contrast, Bayesian statistic assumes that observed data can be derived from **a range of TRUE** parameters (e.g., range of means) that have underlined **distribution** (prior distribution). 
+
+Frequent statistics produces two estimates: Point (e.g., sample mean) and Interval (e.g., 95% confidence interval) estimate.  Bayesian statistics produces single estimate: Posterior distribution (e.g., posterior distribution of mean) that is summarized to point (e.g., posterior mean, median) and interval (e.g., 95% credible interval) estimates.  
+
+SR models included are **Ricker** and **Beverton-Holt** with options of **AR(1) Error** and **Time varying alpha (TVA)**  
 
 ---
 **Model Running Steps**    
@@ -14,14 +18,16 @@ Bayesian analyses is based on numerical simulation and sampling. Bayesian statis
 
 
 To achieve the stable simulation, every Bayesian models have following 4 controls:
-* **Burn-in**  Initial simulation and highly unstable, so that all samples in this stage is thrown out. (Default: 1000)  
+* **Burn-in**  Initial simulation and highly unstable, so that all samples in this stage is thrown out. (Default: 5000)  
 * **Simulation**  This is the stage when samples can be taken. Ideally this phase should be stable. (Default: 10000) 
-* **Thinning**  Sample every xxth simulation. Length of the simulaiton and thinning will determine the number of samples from which parameter estimates are calculated: samples = simulation/ thinning.   Generally, this should be from 1000 to 10000 (Default 10)
-* **Chains**  The number of simulation experiments with different starting points. JAGS selects starting points randomly from the priors. If model is correct, final simulation should reach identical mean-median regardless starting points. The number of chains are generally 1 - 5. (Default 1)  
+* **Thinning**  Sample every xxth simulation. Length of the simulaiton and thinning will determine the number of samples from which parameter estimates are calculated: samples = simulation/ thinning.   Generally, this should be from 1000 to 10000 (Default 5)
+* **Chains**  The number of simulation experiments with different starting points. JAGS selects starting points randomly from the priors. If model is correct, final simulation should reach identical mean-median regardless starting points. The number of chains are generally 1 - 5. (Default 3)  
 
 
-Under the default settings, a total of (burn-in + simulation)xchains (1000+10000)x1 =11000) simulation is conducted.  Of those, 1000 samples are taken (simulation/thinning = 10000/10 = 1000).  Model parameters estimates are based on 1000 samples.  
-The default is set to produce **quick and reasonable estimates**. It is **recommended** to increase the length of burn-in and simulations and the number of chains to obtain **better and more stable estimates**.  Generally, **longer burn-in and simulation and moree chains will produce better model parameter estimates.** However, this will also **increase** simulation time significantly. A rule of thumb is (1) run the model with default setting, (2) check trace and density plots, (3) if the plots do not look good, increase burn-in, simulation, and chains until getting good plots.   
+Under the default settings, a total of (burn-in + simulation)xchains (5000+10000)x3 =45000) simulation is conducted.  Of those, 6000 samples are taken (simulation/thinning = 3x10000/5 = 6000).  Model parameters estimates are based on 6000 samples.  
+
+The default is set to produce **quick and reasonable estimates**. It is **recommended** to increase the length of burn-in and simulations and the number of chains to obtain **better and more stable estimates**.  Generally, **longer burn-in and simulation and moree chains will produce better model parameter estimates.** However, this will also **increase** simulation time significantly. A general direction is run the model with default setting and check trace and density plots. If the plots do not look good, increase burn-in and simulation lengths until obtaining good plots.   
+
 When good parameter estimates are not achieved after long simulations, this is an indication that: (1) **data are not informative**, or (2) **wrong model specifications**.  
 
 
@@ -50,13 +56,13 @@ Log linearlized form of Ricker and Beverton-Holt models are
 $$ln(`R)= ln(\alpha )-\beta s+ln(S)+\varepsilon$$
 
 **Beverton-Holt Model**
-$$ln(`R)=ln(\alpha )-ln(1+\beta s)+ln(S)+e$$
+$$ln(`R)=ln(\alpha )-ln(1+\beta s)+ln(S)+\varepsilon$$
 where
 $$s = S\cdot{10}^{-d}$$
 and  
 $$ d = Int(log(S)) $$
 
-This modeling formulation ensures that $ln(\alpha)$ and $\beta$ be at the same number rage. This makes it easier to estimate model parameters. 
+This modeling formulation ensures that $ln(\alpha)$ and $\beta$ be at the same rage. This makes it easier to estimate model parameters. 
 
 #### AR(1) model option 
 AR(1) model (First-order autoregression model) assumes that error is serially correlated or that the value of residual at time *t* is a linear function of the residual at time *t-1*. 
@@ -83,30 +89,79 @@ The model estimates following parameters
 | $\sigma _{\omega}$|   |  $\sigma _{\omega} \sim U(0,10)$   |  |**TVA option**| 
 
 ---
-All the priors are set to be flat, uninformative, reasonable range that are seen in salmon stock assessment. Model starting points are randomly selected from the above prior ragnes. 
+All the priors are set to be flat, uninformative, reasonable range that are seen in salmon stock assessment. Model starting points are randomly selected from the above prior ranges. 
+
+#### Bayesian Model results 
+Bayesian Analyses estimates **distribution** of model parameters and biological reference points. Those are summarized in mean, median, and x% credible interval.
+
+#### Parameters based on expected mean recruit 
+Under the assumption of lognormal distribution of recruit (R), $`R \sim LN(ln(\mu),{\sigma}^{2})$ or $ln(`R) \sim N(\mu,{\sigma}^{2})$, $\mu$ is an expected **Median R**, and expected **Mean R** is $\mu = exp(ln(\mu) + {\sigma}^{2}/2)$.
+**statistical bias corrected alpha parameters**  $ln(\alpha.c) = ln(\alpha) + {\sigma}^{2}/2$ and $\alpha.c = \alpha e^{{\sigma}^{2}/2}$
+
+
+**Ricker model**
+$$Mdian(`R) = \alpha Se^{-\beta S}$$
+$$Mean(`R) = \alpha.c Se^{-\beta S}$$
+
+**Beverton-Holt model** 
+$$Median(`R) = \frac{\alpha S}{1+\beta S}$$
+$$Mean(`R) = \frac{\alpha.c S}{1+\beta S}$$
 
 ---
 #### Biological reference points
 Following biological reference points are generated from the model 
 * Seq   Spawner abundance expected to produce the same number of recruits
-* Smsy  Spawner abundance espected to produce the maximum number of yield (MSY) * Umsy  Exploitation rate exepected to produce MSY
+* Smsy  Spawner abundance espected to produce the maximum number of yield (MSY) 
+* Umsy  Exploitation rate exepected to produce MSY
 * Smax  Spawner abundance expected to produce the maximum number of recruits
 
 **Ricker model** 
 $$Seq =  \frac{ln(\alpha)}{\beta}$$
-Smsy and Umsy of Riker model is an approximate where 0 < $ln(\alpha)$ < 3(Hilbon 1985) 
-$$Smsy =  Seq(0.5-0.07ln(\alpha))$$
+Smsy and Umsy of Riker model is an approximate where 0 < $ln(\alpha)$ < 3(Hilbon 1985) $$Smsy =  Seq(0.5-0.07ln(\alpha))$$
 $$Umsy =  ln(\alpha)(0.5-0.07ln(\alpha))$$
 $$Smax =  \frac{1}{\beta}$$
+
+**For Seq.c, Smsy.c, Umsy.c Use $\alpha.c$ for lognormal bias correction** 
+
 **Beverton-Holt model** 
 $$Seq =  \frac{\alpha -1}{\beta}$$
 $$Smsy =  \frac{\sqrt{\alpha} -1}{\beta}$$
 $$Umsy = 1- \sqrt{\frac{1}{\alpha}}$$
-Smax does bit exist in Beverton-Holt model
+Beverton-Holt model does not have Smax
 $$Smax = NA$$
 
+**For Seq.c, Smsy.c, Umsy.c Use $\alpha.c$ for lognormal bias correction**
+
+
 ### Bayesian SR model prediction 
-After the model fitting.   
+After the model is fitted, the model parameters and biological reference parameters are calculated for each MCMC sample, from which standard summary statistics are calculated. 
+
+#### Credible and Prediction Interval 
+On the SR and Yield panel, user can choose to show **credible** of **Prediction** interval of user chosen upper and lower percent interval.
+
+Credible Interval is a summary of predicted $R$ from postrior samples parameters (i) at given $S$.  
+
+Ricker Model 
+$$R_{i}^{'}=e^{ln(\alpha_{i}^{'} )-\beta_{i}^{'} S +ln(S)}$$
+
+Beverton_Holt Model
+
+$$R_{i}^{'}=e^{ln(\alpha_{i}^{'} )-ln(1+\beta_{i}^{'} S) +ln(S)}$$
+
+
+Prediction Interval is a summary of $R$ predicted from postrior samples parameters (i) **with error** at given $S$.  
+
+Ricker Model
+$$R_{i}^{'}=e^{ln(\alpha_{i}^{'} )-\beta_{i}^{'} S +ln(S) +\varepsilon_{i}^{'}}$$
+
+Beverton_Holt Model
+
+$$R_{i}^{'}=e^{ln(\alpha_{i}^{'} )-ln(1+\beta_{i}^{'} S)+ln(S)+\varepsilon_{i}^{'}}$$
+
+
+where $\varepsilon_{i}^{'}$ is a random sample from posterior samples (i) $\varepsilon_{i}^{'}\sim N(0,\sigma_{i}^{'} )$
+
+Generally, credible interval indicates a range of mean (over many years) recruits at given $S$ whereas prediction interval indicates a range of (annual) recruits at given $S$.
 
 
 

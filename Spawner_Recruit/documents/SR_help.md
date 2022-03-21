@@ -28,7 +28,8 @@ where ${\omega_{t,iid}} \sim N(0,{\sigma _{\omega }}^{2})$
 #### Biological reference points
 Following biological reference points are generated from the model 
 * Seq   Spawner abundance expected to produce the same number of recruits
-* Smsy  Spawner abundance espected to produce the maximum number of yield (MSY) * Umsy  Exploitation rate exepected to produce MSY
+* Smsy  Spawner abundance espected to produce the maximum number of yield (MSY) 
+* Umsy  Exploitation rate exepected to produce MSY
 * Smax  Spawner abundance expected to produce the maximum number of recruits
 
 ##### Seq
@@ -46,7 +47,7 @@ $$Smax =  \frac{1}{\beta}$$
 $$Seq =  \frac{\alpha -1}{\beta}$$
 $$Smsy =  \frac{\sqrt{\alpha} -1}{\beta}$$
 $$Umsy = 1- \sqrt{\frac{1}{\alpha}}$$
-Smax does bit exist in Beverton-Holt model
+Smax does not exist in Beverton-Holt model
 $$Smax = NA$$
 ## Running Bayesian SR model 
 Bayesian SR Analysis model is coded in **JAGS** (see Model Codes Tab). 

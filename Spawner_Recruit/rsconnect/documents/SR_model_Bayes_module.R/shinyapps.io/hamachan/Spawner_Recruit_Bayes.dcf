@@ -5,10 +5,10 @@ account: hamachan
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1875809
-bundleId: 4644399
+bundleId: 5657996
 url: https://hamachan.shinyapps.io/Spawner_Recruit_Bayes/
-when: 1622071569.10943
-lastSyncTime: 1622071569.10943
+when: 1646770609.09991
+lastSyncTime: 1646770609.09991
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: MSE.r
+ignoredFiles: defalult-style_01.docx|MSE.r|myplot1.png|myplot2.png|Picture2.png

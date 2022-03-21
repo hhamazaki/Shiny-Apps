@@ -1,11 +1,64 @@
+---
+title: "Escapement goal analysis report"
+author:
+  - name:
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+#output: officedown::rdocx_document
+output: word_document
+reference_docx: defalult-style_01.docx
+params:
+Tbl_sum: NA
+---
 
-Here is my regression model:
-
-Below is a scatter plot with the regression line.
-
-``````{r, context="render", echo=FALSE}
-par(cex=0.1)
-srplot()
+```{r,echo=FALSE,include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,comment=NULL, dev='png',fig.dim = c(9,7),dpi=600,message=FALSE,background=NULL)
+opts <- options(knitr.kable.NA = "")
 ```
+
+
+```{r}
+srplot()
+cat(paste0("Figure 1.  SR curve (sold line: mean, dash median).  Gray shade indicates ", input$CI,"% Bayesian ",input$Li," interval."))
+```
+
+
+
+```{r}
+yldplot()
+cat(paste0("Figure 2.  Yield curve (sold line: mean, dash median).  Gray shade indicates ", input$CI,"% Bayesian ",input$Li," interval."))
+```
+
+```{r}
+smsy.prof()
+#params$Plt_MSY_Prof
+cat("Figure 3. MSY Profile Analyses plot. ")
+```
+
+
+```{r}
+smax.prof()
+#params$Plt_MSR_Prof
+cat("Figure 4. Smax Profile Analyses plot. ")
+```
+
+
+
+```{r,eval=(input$dataType=='Run')}
+kable(round(brood.out()$brood,0),caption = "Table 1. Input brood table .")
+```
+
+
+
+```{r,}
+cat("Table 2.  JAGS Model Summary output.")
+print(run.JAGS())
+```
+
+
+
+```{r}
+kable(params$Tbl_sum,caption = "Table 3.  Standard Spawner Recruit Analyses summary.  Note: outliers were removed.",format="pandoc" ) 
+```
+
 
 

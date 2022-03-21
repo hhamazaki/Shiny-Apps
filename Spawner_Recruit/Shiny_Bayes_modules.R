@@ -12,15 +12,15 @@ BayesInputUI <- function(id) {
   # Create a namespace function using the provided id
   ns <- NS(id)
   tagList(
-    p("Bayesian Model Setting"),
+    p(strong("Bayes Model Setting")),
     fluidRow(
       column(6,
-        numericInput(ns('n.burnin'),'Burn-in',value=1000,min=0,step = 1000),
-        numericInput(ns('n.thin'),'Thinning',value=10,min=0,step = 1)
+        numericInput(ns('n.burnin'),'Burn-in',value=5000,min=0,step = 1000),
+        numericInput(ns('n.thin'),'Thinning',value=5,min=0,step = 1)
                      ),  
       column(6,
              numericInput(ns('n.iter'),'Simulation',value=10000,min=0,step=10000), 
-             numericInput(ns('n.chain'),'Chains',value=1,min=1,step = 1)
+             numericInput(ns('n.chain'),'Chains',value=3,min=1,step = 1)
              )
     ),    
     p("Start Bayesian Analyses"),
@@ -53,8 +53,8 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     jagmodel <- Bayesmodel()$jagmodel
     pars <- Bayesmodel()$parameters
     # Run JAGS 
-    output <- jags(data=datnew,parameters.to.save=pars, model.file= jagmodel,
-                   n.chains=nchain, n.iter=titer,n.burnin=nburn,n.thin=nthin,DIC=TRUE)
+    output <- jags.parallel(data=datnew,parameters.to.save=pars, model.file= jagmodel,
+                   n.chains=nchain, n.iter=titer,n.burnin=nburn,n.thin=nthin)
     
     return(output)
   })
@@ -96,7 +96,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     e0 ~ dnorm(0,0.001) 
     Tau <- 1/(sigma*sigma)
     tauw <- 1/(sigmaw*sigmaw)	
-#    tauv <- 1/(sigmav*sigmav)
+#   tauv <- 1/(sigmav*sigmav)
 # Extract time-varyihg alapha
     for(y in 1:nyrs){
      lnalphai[y] <- lnalpha+cw[y] 
@@ -165,7 +165,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
       R[y] ~ dlnorm(mu[y],Tau)
     }  
   }
-# SR model function for poost processing ---------------------------------------
+# SR model function for post processing ---------------------------------------
   SR.BH <- function(lnalpha,beta,S,d){
     s <- S/(10^d)
     lnR <- lnalpha +log(S) - log(1+beta*s)

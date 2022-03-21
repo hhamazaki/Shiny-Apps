@@ -1,7 +1,9 @@
 
 ### Running Management Strategy Evaluation (MSE)Analyses  
 
-Management Strategy Evaluation (MSE) Analyses is designed to evaluate performance of an escapement goal range in more realistic term.  In real fishery management, it is often not possible to meet escapement goal range because: 1) too few or too many fish returned (environmental variation, shifts in productivity) to meet escapement within the goal range, 2) inaccurate fish run assessment (overestimate or underestimate) and fishery execution (fished too much or too few).  Those will have consequences in future return.   
+The escapement goal range analyses are often based on long-term average.  However, those analyses do not evaluate how the goal will be achieved, or probability of achieving the goal range and other management target. In real fishery management, escapement goal may not be achieved due to various factors, too few or too many fish returned to the river, and errors in run assessment (overestimate or underestimate) and fishery execution (fished too much or too few). Even when escapement is within the goal range, future returning run size will vary.
+
+Management Strategy Evaluation (MSE) Analyses is designed to evaluate performance of an escapement goal range in more realistic way.  The simulation model 1) evaluates incoming run size, 2) execute fishery based on predefined escapement goal range and fishery strategy, 3) produce future returns coming from the realized escapement.  
 
 ---
 **Model Running Steps**    
@@ -16,7 +18,7 @@ Management Strategy Evaluation (MSE) Analyses is designed to evaluate performanc
 
 ---
 **Management Strategy Evaluation Analyses**  
-Management Strategy Evaluation (MSE) Analyses is a closed feedback loop simulation model analysis.  The model has two components:(1) salmon population dynamic model based on SR model derived from the SR analyses, and (2) fishery management model that conducts fishery and escapement.   The escapement determined by the fishery management model will determine future population dynamics and fishery management, and thus the model is a closed feedback loop.  
+Management Strategy Evaluation (MSE) Analyses is a closed feedback loop simulation model analysis.The model has two components:(1) salmon population dynamic model based on SR model derived from the SR analyses, and (2) fishery management model that conducts fishery and escapement.   The escapement determined by the fishery management model will determine future population dynamics and fishery management, and thus the model is a closed feedback loop.  
 **NOTE***  
 This simulation assumes no changes in escapement goal range and fishery management strategy 
 

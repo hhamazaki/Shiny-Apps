@@ -1,11 +1,30 @@
-## Profile Analyses
-Profile Analyses have two profiles: MSY and Rmax profiles that provide basis for Smsy based escapement goal and Smax based escapement goal. Both profiles are probabilities of producing a yield/recruit that  is greater than q% of MSY/Rmax at given spawner size.  The profile based escapement goal range is determined by setting a target minimum probability (p) of achieving the goal (i.e. intersection of the profile at given p). Standard profiles are q = 90, 80, and 70% and p = 90%. 
+# Management Target 
 
+
+## Median vs. Mean Target
+The major difference between the two target options are **whether fishery management target is median or mean recruit or yield.**  Here are difference 
+
+* **Median Target**
+** Use **alpha** for SR model to estimate biological reference points and profile.
+** Aim to achieve that 50% of annual and long-term median recruit-yield will fall below or above the target.  
+
+* **Mean Target**
+  * Use **alpha.c** for SR model to estimate biological reference points and profile.
+  * Aim to achieve that 50% of long-term average recruit-yield will fall below or above the target.  
+
+Smsy of Mean Target (Smsy.c) is higher than Median Target Smsy.  Smsy.c can be 0.2% - 100% higher than Smsy depending on alpha and sigma. In general, the deviation will be higher when alpha is low and sigma is high.  Average recruit-yield can be greatly affected by rare extreme events. 
+
+
+## Profile Analyses
+Profile Analyses have two profiles: MSY and Rmax profiles that provide basis for Smsy and Smax based escapement goal range. Both profiles are probabilities of producing a **long term mean** yield/recruit greater than q% of MSY/Rmax at given spawner size.  The profile based escapement goal range is determined by setting a target minimum probability (p) of achieving the goal (i.e. intersection of the profile at given p). Standard profiles are q = 90, 80, and 70% and p = 90%.  
+
+**Note** Calculation of probability is based on Bayesian posterior MCMC simulation sample. Value of MSY/Rmax differ in each sample. In other words, MSY could 10000 in one sample and 5000 in another sample. 
+If management object is attaining **defined** yield or recruitment, please use yield and recruitment analyses.  
 
 ### MSY Profile 
 MSY Profile calculates the probability of a given escapement producing an yields that are above q% of MSY.  The MSY profile is calculated in following steps.  
-* At each Bayesian samples SR parameters (j) and given spawner range(S)
-  * Calculate expected yield $Y_{j}(S_{i})$ and find the maximum yield (MSY) $Max(Y_{j})$
+* In each Bayesian sample of SR parameters (j) and given spawner range(S)
+  * Calculate expected yield $Y_{j}(S_{i})$ and find the maximum yield (**MSY**) $Max(Y_{j})$
   * Assign $X_{i,j}$ to 1 if the expected yield is above the minimum q% of the MSY or 0 if otherwise
 * At each escapement take the mean of X from all the simulation samples. 
 * MSY Profile Range $S_{MSY}$ is a range of spawners such that the profile probability is above the minimum p% target. 
@@ -29,7 +48,7 @@ Rmax Profile calculates the probability of a given spawner size producing recrui
 
 The Rmax profile is calculated in following steps.  
 * At each Bayesian samples SR parameters (j) and given spawner range(S)
-  * Calculate expected recruit $R_{j}(S_{i})$ and find the maximum recruit (Rmax) $Max(R_{j})$
+  * Calculate expected recruit $R_{j}(S_{i})$ and find the maximum recruit (**Rmax**) $Max(R_{j})$
   * Assign $X_{i,j}$ to 1 if the expected recruit is above the minimum q% of the Rmax or 0 if otherwise
 * At each escapement take the mean of X from all the simulation samples. 
 * Rmax Profile Range $S_{max}$ is a range of spawners such that the profile probability is above the minimum p% target.  
