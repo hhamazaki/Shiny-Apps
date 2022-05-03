@@ -198,7 +198,7 @@ sim.out <- function(sim,d,add,model,model.br){
   if(add=='ar1'){
     post$lnalpha.c <- post$lnalpha+0.5*(post$sigma^2)/(1-post$phi^2)
     } else {post$lnalpha.c <- post$lnalpha+0.5*post$sigma^2}
-   post$alpha.c <- exp(post$lnalpha.c)
+    post$alpha.c <- exp(post$lnalpha.c)
   
 #-------------------------------------------------------------------------------
 # Create Biological reference points
@@ -220,6 +220,7 @@ sim.out <- function(sim,d,add,model,model.br){
   post <- post[post$Umsy>0,]
   if(length(remove.out(post$beta))>0) post <- post[remove.out(post$beta),] 
   if(length(remove.out(post$alpha))>0) post <- post[remove.out(post$alpha),] 
+  if(length(remove.out(post$alpha.c))>0) post <- post[remove.out(post$alpha.c),] 
   if(length(remove.out(post$Seq))>0) post <- post[remove.out(post$Seq),] 
   if(length(remove.out(post$Smax))>0) post <- post[remove.out(post$Smax),] 
   return(post)
@@ -327,25 +328,21 @@ plot_density <- function(sim,D,ar1,model='Ricker',target='md'){
   if(target =='me'){
     plot(density(sim$alpha.c),main='alpha.c',xlab='',ylab='')
     plot(density(sim$lnalpha.c),main='lnalpha.c',xlab='',ylab='')
+    plot(density(sim$beta),main=paste0('beta',' x 10^(',-D,')'),xlab='',ylab='')
+    if(ar1==TRUE){plot(density(sim$phi),main='Phi',xlab='',ylab='')}
     plot(density(sim$Seq.c), main='Seq.c',xlab='',ylab='')
     plot(density(sim$Smsy.c), main='Smsy.c',xlab='',ylab='')  
-    plot(density(sim$Umsy.c), main='Umsy.c',xlab='',ylab='')    
+    plot(density(sim$Umsy.c), main='Umsy.c',xlab='',ylab='') 
   } else {
     plot(density(sim$alpha),main='alpha',xlab='',ylab='')
     plot(density(sim$lnalpha),main='lnalpha',xlab='',ylab='')
+    plot(density(sim$beta),main=paste0('beta',' x 10^(',-D,')'),xlab='',ylab='')
+    if(ar1==TRUE){plot(density(sim$phi),main='Phi',xlab='',ylab='')}    
     plot(density(sim$Seq), main='Seq',xlab='',ylab='')
     plot(density(sim$Smsy),main='Smsy',xlab='',ylab='')
     plot(density(sim$Umsy), main='Umsy',xlab='',ylab='')
   }
-    plot(density(sim$beta),main=paste0('beta',' x 10^(',-D,')'),xlab='',ylab='')
-  if(ar1==TRUE){
-    plot(density(sim$phi),main='Phi',xlab='',ylab='')
-  }
-
-  # Smax esists only Ricker SR model.   
-  if(model=='Ricker'){
-    plot(density(sim$Smax), main='Smax',xlab='',ylab='')
-  }
+  if(model=='Ricker'){plot(density(sim$Smax), main='Smax',xlab='',ylab='')}
 }
 
 
@@ -562,6 +559,88 @@ FTA <-function(cmode,LEG,UEG){
   ))
   return(FT)
   }
+
+MSE.sim <- function(srmodel,lnalpha.i,beta,S0,D,e.Rec,e.p,e.pred,e.imp,FT,mH){
+#-------------------------------------------------------------------------------
+#  Create Brood Ages 
+#-------------------------------------------------------------------------------  
+# lage: last age, nages: number of adult return age, fage: first adult return age
+  lage <- length(S0)
+  nages <- dim(e.p)[2]
+  fage <- lage - nages + 1
+  nyrs <- length(e.pred)
+#-------------------------------------------------------------------------------
+#  Create Empty vector for simulation and output  
+#-------------------------------------------------------------------------------  
+# Brood Year Recruit: R0: straight from model, R: R0 with error 
+  R0 <- numeric(nyrs+lage)
+  R <- numeric(nyrs+lage)
+# Annual Run: N: True , N.pred: Assessed run with error 
+  N <- numeric(nyrs)
+  N.pred <- numeric(nyrs)
+# Annual Run by age 
+  N.ta <- matrix(0,ncol=nages, nrow=nyrs+lage*2)
+# Annual Harvest: H: True , H.target: Target Harvest 
+  H <- numeric(nyrs)
+  H.target <-numeric(nyrs)
+# Annual Escapement: S: True   
+  S <- numeric(nyrs)
+# EG: Met lower escapement goal?   
+  EG <- numeric(nyrs)
+#-------------------------------------------------------------------------------
+#  Population Dynamics: Initialization (b.y is brood year)
+#-------------------------------------------------------------------------------
+  for (b.y in 1:lage){
+# Calculate expected Returns from SR model parameter   
+    R0[b.y] <- srmodel(lnalpha.i[b.y],beta,S0[b.y],D)
+# Add Error   
+    R[b.y] <- R0[b.y]*exp(e.Rec[b.y])
+# Distribute recruitment based on maturity schedule 
+  #b.y+fage+a-1 is calendar year. 
+  # Example: fage = 4: fish return as age 4.  
+  # Fish spawn in b.y (say 2000) will return in 
+  # 2004 as 4 years old, 2005 as 5yo, 2006 as 6 yo,...
+  for (a in 1:nages){N.ta[b.y+fage+a-1,a] <- R[b.y]*e.p[b.y,a]}
+  }  # Expected return   
+  
+  #-------------------------------------------------------------------------------
+  #  Population Dynamics: Management Strategies (y is calendar year) 
+  #-------------------------------------------------------------------------------
+  for (y in 1:nyrs){
+    # Brood year b.y is y + lage
+    b.y <-y+lage
+    # Annual Run is sum of all ages
+    N[y] <- sum(N.ta[b.y,])
+    # Predicted Run with error 
+    N.pred[y] <- N[y]*(e.pred[y])
+    # Management based on Escapement goal 
+    H.target[y] <- ifelse(
+      # Case 1 assessed run is less than FT, Fishery is minimum harvest
+      # minimum harvest = 0 for Escapement priority or defined for other strategy     
+      N.pred[y] < FT, mH[1], 
+      # Case 2 assessed run is greater than FT, 
+      # fishery target is surplus or min harvest whichever bigger  
+      # fishery target is also between surplus and the max harvest (fishing capacity) whichever smaller 
+      min(mH[2],max(mH[1],(N.pred[y]-FT)))
+    )  # End ifelse 
+    # Target Harvest rate 
+# Set Target harvest rate 
+    HTR <- H.target[y]*(e.imp[y])/N.pred[y]
+    #  Actual Harvest: Harvest will not exceed 95% of incoming run
+    H[y] <- N[y]*min(HTR,0.95)
+    S[y] <- N[y] - H[y]
+    #     
+    R0[b.y] <- srmodel(lnalpha.i[b.y],beta,S[y],D)
+    # Expected return        
+    R[b.y] <- R0[b.y]*exp(e.Rec[b.y])
+    # Fill ages       
+    for (a in 1:nages){N.ta[b.y+fage+a-1,a] <- R[b.y]*e.p[b.y,a]}
+  }
+  #  out <- list(R=data.frame(cbind(N,S,H,R[-c(1:lage)],R0[-c(1:lage)],EG)), N.ta=data.frame(N.ta))
+  out <- data.frame(cbind(N,S,H,R[-c(1:lage)]))
+  names(out) <- c('N','S','H','R')
+  return(out)
+}
 
 MSE.sim2 <- function(srmodel,lnalpha.i,beta,S0,D,e.Rec,e.p,e.pred,e.imp,LEG,UEG,cmode){
 #-------------------------------------------------------------------------------

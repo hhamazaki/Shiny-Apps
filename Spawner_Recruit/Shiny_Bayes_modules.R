@@ -15,11 +15,11 @@ BayesInputUI <- function(id) {
     p(strong("Bayes Model Setting")),
     fluidRow(
       column(6,
-        numericInput(ns('n.burnin'),'Burn-in',value=5000,min=0,step = 1000),
+        numericInput(ns('n.burnin'),'Burn-in x 1000',value=5,min=0,step = 1),
         numericInput(ns('n.thin'),'Thinning',value=5,min=0,step = 1)
                      ),  
       column(6,
-             numericInput(ns('n.iter'),'Simulation',value=10000,min=0,step=10000), 
+             numericInput(ns('n.iter'),'Sim x 1000',value=10,min=0,step=1), 
              numericInput(ns('n.chain'),'Chains',value=3,min=1,step = 1)
              )
     ),    
@@ -44,8 +44,8 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
 #-------------------------------------------------------------------------------   
 #----  Import model data ------------------------------------------------------- 
     datnew <- Bayesdata()   
-    niter <- input$n.iter      
-    nburn <- input$n.burnin
+    niter <- 1000*input$n.iter      
+    nburn <- 1000*input$n.burnin
     titer <- nburn+niter
     nthin <- input$n.thin
     nchain <- input$n.chain
@@ -88,7 +88,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     }
     #   Define Priors
     lnalpha ~ dunif(0,10)
-    beta ~ dunif(0,10)
+    beta ~ dunif(0,20)
     sigma ~ dunif(0,10)  
     sigmaw ~ dunif(0,10)
 #    sigmav ~ dunif(0,10)
@@ -147,7 +147,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     }
     # Define Priors
     lnalpha ~ dunif(0,10)
-    beta ~ dunif(0,10)
+    beta ~ dunif(0,20)
     phi ~ dunif(-1,1)
     e0 ~ dnorm(0,0.001)     
     sigma ~ dunif(0,10)
@@ -201,7 +201,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     } 
     #     Define Priors
     lnalpha ~ dunif(0,10)
-    beta ~ dunif(0,10)
+    beta ~ dunif(0,20)
     sigma ~ dunif(0,10)
     c ~ dunif(0,1)
     phi ~ dunif(-1,1)
@@ -292,7 +292,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     
     #   Define Priors
     lnalpha ~ dunif(0,10)
-    beta ~ dunif(0,10)
+    beta ~ dunif(0,20)
     sigma ~ dunif(0,10)  
     sigmaw ~ dunif(0,10)
     sigmav ~ dunif(0,10)

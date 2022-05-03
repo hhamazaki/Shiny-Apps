@@ -12,13 +12,20 @@ Tbl_sum: NA
 
 ```{r,echo=FALSE,include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,comment=NULL, dev='png',fig.dim = c(9,7),dpi=600,message=FALSE,background=NULL)
-opts <- options(knitr.kable.NA = "")
+#opts <- options(knitr.kable.NA = "")
+```
+
+
+```{r}
+# Run and Escapement time series plot 
+runesc()
+cat(paste0("Figure 1.  curve (sold line: median, dash mean).  Gray shade indicates ", input$CI,"% Bayesian ",input$Li," interval."))
 ```
 
 
 ```{r}
 srplot()
-cat(paste0("Figure 1.  SR curve (sold line: mean, dash median).  Gray shade indicates ", input$CI,"% Bayesian ",input$Li," interval."))
+cat(paste0("Figure 1.  curve (sold line: median, dash mean).  Gray shade indicates ", input$CI,"% Bayesian ",input$Li," interval."))
 ```
 
 
