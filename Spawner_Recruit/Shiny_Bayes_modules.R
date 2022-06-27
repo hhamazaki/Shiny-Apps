@@ -12,7 +12,6 @@ BayesInputUI <- function(id) {
   # Create a namespace function using the provided id
   ns <- NS(id)
   tagList(
-    p(strong("Bayes Model Setting")),
     fluidRow(
       column(6,
         numericInput(ns('n.burnin'),'Burn-in x 1000',value=5,min=0,step = 1),
@@ -49,12 +48,17 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     titer <- nburn+niter
     nthin <- input$n.thin
     nchain <- input$n.chain
+    seed <- 123
+#    seed <- sample(1:1000,1)
     #  JAGS model selection 
     jagmodel <- Bayesmodel()$jagmodel
     pars <- Bayesmodel()$parameters
     # Run JAGS 
-    output <- jags.parallel(data=datnew,parameters.to.save=pars, model.file= jagmodel,
-                   n.chains=nchain, n.iter=titer,n.burnin=nburn,n.thin=nthin)
+    output <- jags(data=datnew,parameters.to.save=pars, model.file= jagmodel,
+                            n.chains=nchain, n.iter=titer,n.burnin=nburn,n.thin=nthin)
+#    output <- jags.parallel(data=datnew,parameters.to.save=pars, model.file= jagmodel,
+#                   n.chains=nchain, n.iter=titer,n.burnin=nburn,n.thin=nthin,
+#                   jags.seed = seed)
     
     return(output)
   })
@@ -71,9 +75,10 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
 #---------------------------------------------------------------
   jag.model.CR <- function(){
     for(y in 1:nyrs){
-      s[y] <- S[y]/(10^d)
+      # log nornmal Likelihood 
+      R[y] ~ dlnorm(mu[y],Tau)
 # v[i] is used for Kalman filter 
-      fit[y] <- log(S[y]) + lnalpha - beta * s[y] 
+      fit[y] <- log(S[y]) + lnalpha - beta * S[y]/(10^d) 
       e[y] <- log(R[y]) - fit[y]
       w[y] ~dnorm(0,tauw)
      }
@@ -86,7 +91,11 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
       cw[y] <- cw[y-1] + w[y] #+ v[y]
       mu[y] <- fit[y] + kf*cw[y] + ar1*phi*e[y-1]
     }
-    #   Define Priors
+    # log nornmal Likelihood 
+#    for(y in 1:nyrs){     
+#      R[y] ~ dlnorm(mu[y],Tau)
+#    }  
+#   Define Priors
     lnalpha ~ dunif(0,10)
     beta ~ dunif(0,20)
     sigma ~ dunif(0,10)  
@@ -101,10 +110,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     for(y in 1:nyrs){
      lnalphai[y] <- lnalpha+cw[y] 
     }
-# log nornmal Likelihood 
-    for(y in 1:nyrs){     
-      R[y] ~ dlnorm(mu[y],Tau)
-    }  
+
   }
   
 # SR model function for post processing ---------------------------------------
@@ -132,14 +138,14 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
   jag.model.BH <- function(){
     for(y in 1:nyrs){
       s[y] <- S[y]/(10^d)
-      fit[y] = lnalpha + log(S[y]) -log(1+beta*s[y])
-      e[y] = log(R[y]) - fit[y]
+      fit[y] <- lnalpha + log(S[y]) -log(1+beta*s[y])
+      e[y] <- log(R[y]) - fit[y]
       w[y] ~dnorm(0,tauw)
     }
 # ar1 = 0 and kf =0 in standard analysis   
 # ar1 = 1 and kf =0 AR1 error moddel 
 # ar1 = 0 and kf =1 time-varying alpha
-    mu[1] <-  fit[1] + ar1*phi * e0;
+    mu[1] <-  fit[1] + ar1*phi*e0;
     cw[1] <- w[1] #+ v[y]
     for(y in 2:nyrs){	   
       cw[y] <- cw[y-1] + w[y] #+ v[y]
@@ -160,7 +166,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     for(y in 1:nyrs){
       lnalphai[y] <- lnalpha+cw[y] 
     }
-        # Likelihood 
+# Likelihood 
     for(y in 1:nyrs){
       R[y] ~ dlnorm(mu[y],Tau)
     }  
@@ -195,7 +201,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     }
     # ar1 = 0 in standard analysis   
     # ar1 = 1 when AR1 error moddel is considered.   
-    mu[1] = fit[1] + ar1*phi * e0;	  
+    mu[1] = fit[1] + ar1*phi*e0;	  
     for(y in 2:nyrs){	   
       mu[y] = fit[y] + ar1*phi*e[y-1]    
     } 
@@ -220,104 +226,176 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     return(R)
   }
 
-#-------------------------------------------------------------------------------
-#  State-Space Model 
-#-------------------------------------------------------------------------------
-  jag.model.SS <- function(){
-#-------------------------------------------------------------------------------
-# fage: first age of fish returning, 
-# lage: last age of fish returtning
-# nage: number of ages returning: nage = lage-fage+1
-#  Brood [b] vs. Calendar [y] Year 
-# Brood:    1,  2,  3, ... lage, lage+1, lage+2, lage+3, .... , lage+nyr    
-# Calendar: NA, NA, NA, ... NA,  1, 2,  3, ......., nyr        
-#-------------------------------------------------------------------------------    
-#-------------------------------------------------------------------------------
-#  Generate Recruitment prior to calendar Year 
-#-------------------------------------------------------------------------------
-  for (b in 1:lage) { 
-      S[b] <- exp(ln.S[b])
-      s[b] <- S[b]/(10^d)
-      fit[b] <- ln.S[b] + lnalpha - beta * s[b]
-      e[b] ~ dnorm(0,tau)
-      w[b] ~ dnorm(0,tauw)
-       }	
-    # ar1 = 0 and kf =0 in standard analysis   
-    # ar1 = 1 and kf =0 AR1 error moddel 
-    # ar1 = 0 and kf =1 time-varying alpha
-    ar[1] <- e[1];
-    cw[1] <- w[1] #+ kf*v[y]
-    for(b in 2:lage){	   
-# Random walk 
-      cw[b] <- cw[b-1] + w[b] #+ kf*v[y]
-# AR1 Error 
-      ar[b] <- ar1*phi*e[y-1] + e[b]
-# Expected Recruitment 
-      mu[b] <- fit[b] + kf*cw[b] + ar1*phi*e[b-1]
-      R[b] <- exp(mu[b])   
-    }
 
-#  calculate maturity functions ------------------------------------------------   
-    for (b in 1:nyr){
-      for (a in 1:nage){
-        # cummulative brood age comp is a logistic function	
-        ca <- fage+a-1  # age of fish 
-        cum_brp[b,a] <- 1.0/(1.0+exp(mk_y[b]*(me_y[b]-ca)))
-        cum_brp[b,nage]<- 1.0  # all fish mature 
+#-------------------------------------------------------------------------------
+#  Ricker State-Space Model 
+#-------------------------------------------------------------------------------
+ jag.model.CR.SS <-function() {
+# y: Brood year 
+# t: Calendar year t=1 equals to lage+1 for brood year
+
+#-------------------------------------------------------------------------------          	
+# SR period:  Before Run-Escapement data are collected
+#-------------------------------------------------------------------------------          	
+#-------------------------------------------------------------------------------
+# Option 1: Estimate Recruit 
+#-------------------------------------------------------------------------------                
+#    for (y in 1:lage) { 
+#    	log.R[y] ~ dnorm(mean.lnR0,tau.R0) 
+#    		R[y] <- exp(log.R[y]) 
+#    	}	
+#    mean.lnS0 ~ dunif(0,15)
+#    tau.R0 ~ dgamma(0.001,0.001)     
+#-------------------------------------------------------------------------------
+# Option 2: Estimate Spawner  
+#-------------------------------------------------------------------------------
+    resid[1] <- e0
+  for (y in 1:lage) { 
+      ln.S[y] ~ dnorm(mean.lnS0,tau.S0) 
+      SS[y] <- exp(ln.S[y])
+      fit[y] <- ln.S[y] + lnalpha - beta * SS[y]/(10^d) + kf*cw[y]
+      mu[y] <- fit[y]+ar1*phi*resid[y]  #Note: resid[y] is previous year,
+      R[y] ~ dlnorm(mu[y],tau.e)
+      resid[y+1] <- log(R[y]) - fit[y]	          
+    }	
+# priors     
+    mean.lnS0 ~ dunif(0,10)
+    tau.s ~ dgamma(0.001,0.001) 
+#-------------------------------------------------------------------------------          	
+# SR period:  After Run-Escapement data are collected
+#-------------------------------------------------------------------------------          	
+#   resid[lage+1] <- e0  # Use when R [1:lage] were directly estimated
+    for (y in (lage+1):(nyrs+lage-fage)) { 
+      fit[y] <- log(S[y-lage]) + lnalpha - beta * S[y-lage]/(10^d) + kf*cw[y] 
+      mu[y] <- fit[y]+ar1*phi*resid[y] #Note: resid[y] is previous year,
+      R[y] ~ dlnorm(mu[y],tau.e)
+      resid[y+1] <- log(R[y]) - fit[y]
+    }
+#--------------------------------------------------------------------------------          	
+#  Time variant alpha 
+#--------------------------------------------------------------------------------          	
+# cw: cumulative variation   
+    cw[1] <- w[1] 
+  for (y in 2:(nyrs+lage-fage)) {
+    cw[y] <-  (cw[y-1] + w[y]) 
+     }
+  for (y in 1:(nyrs+lage-fage)) { 
+      lnalphai[y] <- lnalpha + cw[y]	# sigma for lnalpha
+     } 
+#  Priors 
+  for (y in 1:(nyrs+lage-fage)) {  
+      w[y] ~ dnorm(0,tau.w)%_%T(-5,5)  # sigma for lnalpha
       }
-      # brp: brood year age proportion (i.e. maturity schedule). 	 
-      brp[b,1]<- cum_brp[bg,1]	 
-      for (a in 2:nage){
-        brp[b,a] <- cum_brp[b,a] - cum_brp[b,a-1];	 
-      }
-    }
-    
-    for(y in 1:nyrs){
-      s[y] <- S[y]/(10^d)
-      # v[i] is used for Kalman filter 
-      fit[y] <- log(S[y]) + lnalpha - beta * s[y] 
-      e[y] <- log(R[y]) - fit[y]
-      w[y] ~dnorm(0,tauw)
-    }
-    # ar1 = 0 and kf =0 in standard analysis   
-    # ar1 = 1 and kf =0 AR1 error moddel 
-    # ar1 = 0 and kf =1 time-varying alpha
-    mu[1] <-  fit[1] + ar1*phi * e0;
-    cw[1] <- w[1] #+ kf*v[y]
-    for(y in 2:nyrs){	   
-      cw[y] <- cw[y-1] + w[y] #+ kf*v[y]
-      mu[y] <- fit[y] + kf*cw[y] + ar1*phi*e[y-1]
-      v[y] ~ dnorm(mu[y],tauv)
-    }
-    
-    #   Define Priors
-    lnalpha ~ dunif(0,10)
-    beta ~ dunif(0,20)
-    sigma ~ dunif(0,10)  
-    sigmaw ~ dunif(0,10)
-    sigmav ~ dunif(0,10)
+#--------------------------------------------------------------------------------          	
+#   SR Model Priors     
+#--------------------------------------------------------------------------------          	
+    lnalpha ~ dnorm(0,1.0E-6)%_%T(0,)
+    beta ~ dnorm(0,1.0E-6)%_%T(0,)              
     phi ~ dunif(-1,1)
-    e0 ~ dnorm(0,0.001) 
-    Tau <- 1/(sigma*sigma)
-    tauw <- 1/(sigmaw*sigmaw)	
-    tauv <- 1/(sigmav*sigmav)	
-    # Extract time-varyihg alapha
-    for(y in 1:nyrs){
-      lnalphai[y] <- lnalpha+cw[y] 
-    }
-    # log nornmal Likelihood 
-    for(y in 1:nyrs){     
-      R[y] ~ dlnorm(mu[y],Tau)
-    }  
-  }
+    tau.e ~ dgamma(0.001,0.001)        	
+    e0 ~ dnorm(0,0.001)%_%T(-5,5)
+    tau.w ~ dgamma(0.001,0.001) 
+#-------------------------------------------------------------------------------             
+#  Maturity Schedule 
+#-------------------------------------------------------------------------------             
+# GENERAL MATURITY SCHEDULE---------------------------------------------------
+#	D <- sum(gamma[])
+#	for (a in 1:nages) {
+#  		gamma[a] ~ dgamma(0.005,0.005)
+#  		pi[a] <- gamma[a] / D
+#  			for (y in 1:(nyrs+lage-fage)) {                                                    
+#      			g[y,a] ~ dgamma(gamma[a],1)
+# p: brood year age proportion (i.e. maturity schedule). 	 
+#      			p[y,a] <- g[y,a]/sum(g[y,])
+#   			}
+# 	}
+    
+#------ Logistic Maturity Schedule --------------------------------------------   	
+#  Maturity schedule take random-walk------------------------------------------- 
+    rwk[1] = mk
+    rwe[1] = me  
+#  calculate maturity functions ------------------------------------------------   
+ for (y in 1:(nyrs+lage-fage)){
+      rwk[y+1] <- mk_b[y]  
+      rwe[y+1] <- me_b[y]  
+      me_b[y] ~ dnorm(rwe[y],0.01)%_%T(3,6) #Note: rwe[y] is previous year,	 
+      mk_b[y] ~ dnorm(rwk[y],0.01)%_%T(0,6) #Note: rwk[y] is previous year,
+      
+    for (a in 1:(nages-1)){
+# cummulative brood age comp is a logistic function	
+        cum_brp[y,a] <- 1.0/(1.0+exp(mk_b[y]*(me_b[y]-fage-a+1)))	 
+         }
+        cum_brp[y,nages] <- 1.0
+# p: brood year age proportion (i.e. maturity schedule). 	 
+      p[y,1] <- cum_brp[y,1]	 
+      p[y,2:nages] <- cum_brp[y,2:nages] - cum_brp[y,1:(nages-1)]	 	
+    
+    }  # End y
+# mk me priors  
+    mk ~ dunif(1,6)
+    me ~ dunif(4,6)
+#-------------------------------------------------------------------------------
+#  Calendar Year Population Dynamics 
+#-------------------------------------------------------------------------------
+ for(t in 1:nyrs){
+# N.ta: The number of fish (RUN) returning at Calendar year t by age      
+  for(a in 1:nages) { N.ta[t,a]<-R[(t+nages-a)]*p[(t+nages-a),a] }
+
+# N: Total number of fish at calender year 
+    N[t] <- sum(N.ta[t,1:nages])
+# q: Run age proportion at calender year      
+    q[t,1:nages] <- N.ta[t,1:nages] / N[t]
+    
+#   Calculate Harvest and Escapement 
+    H[t] <- mu.H[t] * N[t]    
+    S[t] <- N[t]-H.com[t]	
+# mu.H Prior
+    mu.H[t] ~ dbeta(0.1,0.1)
+# Convert N H S to log 
+    log.N[t] <- log(N[t])    
+    log.H[t] <- log(H[t])
+    log.S[t] <- log(S[t])
+    
+# Calculate Empirical log.Tau for N, H, S 
+# N     
+    sigma.N[t]<-sqrt(log(pow(cv.N[t],2)+1))
+    tau.log.N[t]<-1/pow(sigma.N[t],2)	
+# H     
+    sigma.H[t]<-sqrt(log(pow(cv.H[t],2)+1))
+    tau.log.H[t]<-1/pow(sigma.H[t],2)  
+# S     
+    sigma.S[t]<-sqrt(log(pow(cv.S[t],2)+1))
+    tau.log.S[t]<-1/pow(sigma.S[t],2)	    
+#-------------------------------------------------------------------------------
+#  Likelihood Calculations: 
+#-------------------------------------------------------------------------------
+#  Run age comp is mulitinomial Likelihood 
+   x[t,1:nages] ~ dmulti(q[t,],n[t])
+    
+#  Run size  is lognormal distribution 
+  N.obs[t] ~ dlnorm(log.N[t],tau.log.N[t]) 
+      
+# Total Harvest Estimates LIKELIHOOD -------------------------------------------			
+  H.obs[t] ~ dlnorm(log.H[t],tau.log.H[t])  
+
+# Spawner is total run minus harvest -------------------------------------------
+  S.hat[t] ~ dlnorm(log.S[t],tau.log.S[t]) 		
+   
+   }  # End t 
+  
+ }  # End SS.CR model 
   
 
-  
 #--- Function Model select -----------------------------------------------------
-model_select <- function(smodel,add){
+model_select <- function(smodel,add,ss=FALSE){
   if(smodel=='Ricker'){
+     if(isTRUE(ss)){
+       jagmodel <- jag.model.CR.SS
+       parameters <- c('lnalpha','alpha','beta','R','S','N','mu.H','mk_b','me_b')    
+     }else{
     jagmodel <- jag.model.CR
     parameters <- c('lnalpha','beta','sigma') 
+     }
     if(add=='ar1'){ ar1.p <- c('phi','e0')} else {ar1.p <- NULL}
     if(add=='kf'){kf.p <- c('lnalphai','sigmaw')} else {kf.p <- NULL}
     parameters <- c(parameters,ar1.p,kf.p)

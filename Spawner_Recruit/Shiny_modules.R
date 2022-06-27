@@ -415,19 +415,19 @@ PercentileServer <- function(id,e.data){
 Txt_Tier <- reactive({
   txt<- HTML(
       if(input$Tiers =="Tier 1"){
-        paste(paste("Escapement goal criteria"),
+        paste("Escapement goal criteria",
           "High contrast (> 8)",
           "High measurement error (aerial or foot surveys)",
           "Low to moderate average harvest rates (<40%)",
           "Goal Range: 20th - 60th percentile",sep = '<br/>')
       } else if(input$Tiers == "Tier 2")  {
-        paste(paste("Escapement goal criteria"),
+        paste("Escapement goal criteria",
           "High contrast (> 8)",
           "Low measurement error (weir or tower surveys)",
           "Low to moderate average harvest rates (<40%)",
           "Goal Range: 15th - 65th percentile",sep = '<br/>')
       } else {
-        paste(paste("Escapement goal criteria"),
+        paste("Escapement goal criteria",
           "Low contrast (< 8)",
           "Lowe to moderate average harvest rates (<40%)",
           "Goal Range: 5th - 65th percentile",sep = '<br/>')

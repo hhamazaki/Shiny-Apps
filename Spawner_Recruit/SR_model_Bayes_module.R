@@ -14,12 +14,13 @@
 #initialize
 library(shiny)        # used for creating Shiny 
 library(shinythemes)  # used to specify themes
+library(shinyhelper)  # used to add quick help
 library(bslib)
 library(markdown)     # used to read markdown file
 library(rmarkdown)     # used to get rmarkdown file
 library(knitr)
-library(reshape2)
-library(datasets)
+library(reshape2)     # used for data transpose 
+library(datasets)   
 library(lmtest)       # used for dwtest 
 library(mgcv)         # used for spline 
 library(maptools)     # used for unoverlapping labels 
@@ -52,39 +53,42 @@ ui<-fluidPage(
 #-------------------------------------------------------------------------------
 # Create brood and SR module
 selectInput(inputId="dataType","Data Type", choices = c('Run','S-R','Escapement Only')),
-# If data is "Run" select first age 
-conditionalPanel(condition="input.dataType== 'Run'",
-  # Input: Select what to display
-  numericInput("fage", "First Run Age", value=4,min=1,max=20,step=1)
-  ),
+checkboxInput(inputId="Sample", "Inport Sample Data", FALSE), 
 #-------------------------------------------------------------------------------    
 # Module:  File Inuput  
 #-------------------------------------------------------------------------------
 # File Input module 
   dataInputUI("datain", "User data (.csv format)"),
-#-------------------------------------------------------------------------------    
-# UI:  Limit data 
-#-------------------------------------------------------------------------------
+
+# uiOutput to show age range 
+  uiOutput('agerange'),
+
+# uiOutput whether to combinie or eliminate 
+  uiOutput('agecomb'),
+
+# uiOutput Year rang selection 
   uiOutput('yrange'),
 #-------------------------------------------------------------------------------
   hr(),
+# Default axis point UI 
  checkboxInput(inputId="autoui", "Defalut axis unit", TRUE),
  conditionalPanel(condition="input.autoui== false",
     selectInput(inputId="ui","Figure Axis Dislpay Unit", choices = c('1','1000','million'))
       )
-   ), # End SidePanel
+   ), # End sidebarPanel (Data Input)
 
 #=========================MainPanel=============================================
   mainPanel(
     tabsetPanel(id="subTab",
 #------------------ Show Input data --------------------------------------------      
-      tabPanel("Table",  
-               strong(uiOutput('note')),
+      tabPanel("Table",
+               strong(htmlOutput('note')),
+               h2(uiOutput('note2')),
                dataTableOutput('Tbl_data')),
 #------------------ Brood Table ------------------------------------------------      
       tabPanel("Brood Table",
                 dataTableOutput("Tbl_data.brood")
-                  ),
+                  ), # End tabPanel
 #------------------ Time Series ------------------------------------------------
       tabPanel("Time Series",
               plotOutput("Plt_srt"),
@@ -95,15 +99,12 @@ conditionalPanel(condition="input.dataType== 'Run'",
       tabPanel("Summary",
                verbatimTextOutput('Txt_sum.data'),
                plotOutput('Plt_hist.sry')
-             ),
-      tabPanel("Help",
-               (               
-               includeMarkdown("documents/Input_help.md")
-               )
+             ), # End tabPanel
+      tabPanel("Help", (includeMarkdown("documents/Input_help.md"))
           )  # End tabPanel
         )  # End tabsetPanel
       )  # End mainPanel
-     ), # End tabpanel
+     ), # End Data Input tabPanel
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Panel 2 Escapement Only Analyses 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++    
@@ -147,23 +148,40 @@ tabPanel("Escapement Only Analyses",
            )#End tabsetPanel
          )#End main Panel 
   ),#End tabPanel Escapement only Analysis 
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Panel 3  Data Analyses 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#navbarMenu("SR Model Analyses",
   tabPanel("SR Model",
     sidebarPanel(width = 3,
 #---------  Bayes Model Control Sidebar ----------------------------------------                 
       conditionalPanel(condition="input.Panel == 'Bayes Model'",
-        p("Bayesian Model Setting"),
+        p(strong("Bayesian Model Setting")),
            selectInput('Model',"Select SR Model",choices=c('Ricker','Beverton-Holt'),
                     selected ='Ricker'),
            radioButtons(inputId="add","Model Addition",
             choices=c("None"="none","AR(1) Error"="ar1","Time varying alpha"="kf"),
             selected = NULL),
 #-------------------------------------------------------------------------------    
+# UI:  State-Space Model Control UI
+#-------------------------------------------------------------------------------
+conditionalPanel(condition="input.dataType == 'Run'",  
+# checkboxInput(inputId="SS", ("State-Space Modeling"), FALSE), 
+       conditionalPanel(condition="input.SS == true",
+       p("Select Column name from data file"),
+    # Input: Select what to display
+       selectInput(inputId="cv_N","Run CV", choices = ""),
+       selectInput(inputId="cv_E","Escapement CV", choices = ""),
+       selectInput(inputId="cv_H","Harvest CV", choices = ""), 
+       selectInput(inputId="efn","Effective Age sample size", choices = "")
+        )
+     ),              
+
+#-------------------------------------------------------------------------------    
 # UI:  Bayes Model Control UI
 #-------------------------------------------------------------------------------
+ hr(),
+ p(strong("Bayes Model Setting")),
   checkboxInput(inputId="BayesMCMC", strong("Import MCMC"), FALSE), 
    conditionalPanel(condition="input.BayesMCMC == false",
       BayesInputUI('Bayes'),
@@ -182,7 +200,7 @@ tabPanel("Escapement Only Analyses",
               selected = 'md'), 
         uiOutput('astar'),  
         p(strong("Plot options")),               
-        checkboxInput(inputId="show.points", "show Years", FALSE), 
+        checkboxInput(inputId="show.points", "show Years", TRUE), 
         checkboxInput(inputId="show.smsy", "show Smsy", FALSE),
         checkboxInput(inputId="show.smax", "show Smax", FALSE),
         checkboxInput(inputId="show.int", "show Interval", TRUE),
@@ -228,25 +246,21 @@ tabPanel("Escapement Only Analyses",
     tabPanel("Model Codes",
         verbatimTextOutput('modelcode')
             ),#End tabPanel: Model Code
-    tabPanel("MCMC data",
-      dataTableOutput('Tbl_mcmcdata')
-),#End tabPanel: Model Code
-
+#    tabPanel("MCMC data",
+#      dataTableOutput('Tbl_mcmcdata')
+#            ),#End tabPanel: Model Code
      tabPanel("Help",
-         withMathJax(               
-           includeMarkdown("documents/JAGS_help.md")
-         )
+        withMathJax(includeMarkdown("documents/JAGS_help.md"))
             ), # End tabPanel: Help
     id = "Panel"
            )#End tabsetPanel
         )#End mainPanel
-      ),#End tabPanel
-
-#   ),#End nabVarMenu
+      ),#End SR Model tabPanel
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Panel 3: Escapement Goal Analyses 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 navbarMenu("Escapement Goal Analyses",
 #===============================================================================    
 #  tabPanel: Smsy-Smax Goal Analyses 
@@ -277,9 +291,7 @@ navbarMenu("Escapement Goal Analyses",
           htmlOutput("Txt_Srange.smax")
               ), #End tabPanel: Goal 
         tabPanel("Help",
-                 withMathJax(               
-                   includeMarkdown("documents/Profile_help.md")
-                 )
+          withMathJax(includeMarkdown("documents/Profile_help.md"))
                 ) #End tabPanel: Help  
             )#End tabsetPanel
         )#End mainPanel
@@ -318,9 +330,7 @@ navbarMenu("Escapement Goal Analyses",
           verbatimTextOutput("Txt_Rec_gl")
           ),# End tabPanel
         tabPanel("Help",
-          withMathJax(               
-            includeMarkdown("documents/Yield_Recruit_help.md")
-            )        
+          withMathJax(includeMarkdown("documents/Yield_Recruit_help.md"))        
         ),# End tabPanel
         id = "cPanel"
           )#End tabsetPanel
@@ -387,15 +397,12 @@ navbarMenu("Escapement Goal Analyses",
                tableOutput('Tbl_sim')
         ),# End tabPanel
       tabPanel("Help",
-        withMathJax(               
-          includeMarkdown("documents/Custom_Escapement_help.md")
-          )     
+        withMathJax(includeMarkdown("documents/Custom_Escapement_help.md"))     
           )# End tabPanel
         )#End tabsetPanel
       )#End main Panel 
-    )
-#    ,#End tabPanel Custom Escapement Goal Evaluation
-    ),#End navbarMenu
+    ) #End tabPanel 
+    ),#End Escapement Goal Analyses navbarMenu
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Panel 4  Management Strategy Evaluation 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -485,7 +492,8 @@ navbarMenu("MSE Analyses",
                   ), #End tabPanel
                         
     tabPanel("Sim time series",
-          verbatimTextOutput('sims.out') 
+          verbatimTextOutput('sims.out'),
+          dataTableOutput('Tbl_mse')
 #          plotOutput(height='600px',"altsim.N"), 
 #          downloadButton("simdownload", "Download")
                   ),  #End tabPanel
@@ -553,22 +561,30 @@ navbarMenu("MSE Analyses",
               D determines level of variation. Lower D indicate higher variation")
                       ) # End tabPanel
                     )# End tabsetPanel
-           )#End tabPanel Model Description
-        ),#End navMenue Panel
+           )#End tabPanel 
+    ),#End MSE navMenue Panel
 
-      tabPanel("Report Output",   
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  Panel 5  Report Output section 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  tabPanel("Report Output",   
         sidebarPanel(
-#    helpText(),
-#    selectInput(inputId="figtest", 'figures', choices = c('A','B')),
         downloadButton('downloadReport')
         ),
-  mainPanel(
+   mainPanel(
     h1("Under Construction")
 #    withMathJax(               
 #      includeMarkdown("report.Rmd")
 #    )
   )
-)  
+),  # End (Report Output panel)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  Panel 6  Version History 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  tabPanel("Version History",  
+  )
+ 
  ),#End nabVarPage
 #-------------------------------------------------------------------------------
 # Citation Disclaimer  
@@ -590,18 +606,26 @@ p(strong("Missed escapement passage estimation:",
 #  Server:  
 #===============================================================================
 server<-shinyServer(function(input, output, session){
-
-output$note <- renderUI({
-    if(input$dataType== "S-R"){
-      paste("S-R Data file column orders: Year, Spawner (Escapement), Recruit")
+output$note <- reactive({
+   HTML(
+   if(input$dataType== "S-R"){
+      paste("S-R Data file column orders:", "Year, Spawner (Escapement), Recruit",sep = '<br/>')
     } else if(input$dataType== "Run")  {
-      paste("Run Data file column orders: Year, Escapement, Run,
-                   Run by age (or proportion) from youngest to oldest")
-    } else {
+      paste("Run Data file column orders: Year, Escapement, Run, Run by age (or proportion), cv_N, cv_E, cv_H,efn", 
+            "Age name MUST be written as 'A + run age' (A3) or 'a+European scale age' (a1.1) ",
+            "cv_N, cv_E, cv_H: cv estimate of run, escapement, harvest", 
+            "efn:  Effective sample size (must be integer)",
+            sep = '<br/>')
+    } else if(input$dataType== "Escapement Only") {
       paste("Escapement only Data file column orders: Year, Escapement")
-    } 
+   }else if(dim(data())[1]>0){ NULL} 
+    ) # End HTML
   })
-
+output$note2 <- renderUI({
+  if(input$dataType== "Run" & is.null(age.out(data()))){
+    paste("Incorrect age column names: Please correct.")
+  } 
+})
 #-------------------------------------------------------------------------------
 #  Tab Control  
 #-------------------------------------------------------------------------------
@@ -625,8 +649,16 @@ observe({
     hideTab(inputId = "tabs", target = "SR Model")
     hideTab(inputId = "subTab", target = "Brood Table")
   }
+ })  
 
-})  
+# Observe Year, Spawner, Recruit Column name
+observe({
+  var.opts<-names(data())
+  updateSelectInput(session, inputId="cv_N", choices = var.opts)
+  updateSelectInput(session, inputId="cv_E", choices = var.opts)
+  updateSelectInput(session, inputId="cv_H", choices = var.opts)
+  updateSelectInput(session, inputId="efn", choices = var.opts)
+  })
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  Data upload and output 
@@ -644,15 +676,66 @@ observe({
      })
   
 # Data file reading module  
-  data <- dataInputServer("datain")
+data1 <-  dataInputServer("datain")
+  
+data <- reactive({
+  if(isTRUE(input$Sample)){
+  if(input$dataType== "Run"){out <- read.csv('Sample_Run_data.csv',header=T)} 
+  else if(input$dataType== "S-R"){out <- read.csv('Sample_SR_data.csv',header=T)} 
+  else if(input$dataType== "Escapement Only"){out <- read.csv('Sample_Esc_data.csv',header=T)} 
+    }
+  else {
+   out <- data1()
+  }
+  return(out)
+
+})
+      
 
 # table ---- Uploaded data table output ----------------------------------------
   output$Tbl_data <- renderDataTable({data()})  
 
+# UI ---- age range ------------------------------------------------------------
+#  observe({
+#    if(input$dataType== "Run" & is.nul(age.out(data())))
+#      showModal(modalDialog(
+ #      title = "Somewhat important message",
+#        "This is a somewhat important message.",
+ #       easyClose = TRUE,
+#        footer = NULL
+#      ))
+#  })
+  
+  output$agerange <- renderUI({
+    if(input$dataType== "Run"){
+     age <-  age.out(data())
+     if(is.null(age)){
+       renderText({
+         paste("Wrong age data format")
+       })
+     }else{
+     fage <- min(age)       # First brood year 
+     lage <- max(age)       # Last brood year
+    #  Slider input UI 
+    sliderInput("rage", label = paste("Select","Run Age Range"), min = fage, max = lage, value = c(fage, lage),step=1,sep = "")
+     }
+    }
+    })
+  
+  output$agecomb <- renderUI({
+    if(length(input$rage[1])>0){
+      #  Slider input UI 
+      checkboxInput("combage", label = "Combine Ages", value = FALSE)
+        } 
+  })
+  
+  
 # brood.table--- Construct brood table (when dataType is "Run") ----------------   
   brood.out <-  reactive({
     if(input$dataType== "Run"){
-      brood <- make.brood(data(),input$fage)
+      agedata <- make.age(data(),input$rage[1], input$rage[2],input$combage)
+      data <- cbind(data()[,1:3],agedata)
+      brood <- make.brood(data,input$rage[1])
       return(brood)
     } else{NA}
   })
@@ -777,7 +860,7 @@ output$Plt_agecompr <- renderPlot({
 
 # Plt_srt ---------- Plot SR time series ---------------------------------------
 output$Plt_srt <- renderPlot({
-  if(input$dataType != "Escapement Only"){
+  if(input$dataType != if(input$dataType== "Run"){out <- read.csv('Sample_Run_data.csv',header=T)} ){
     x <- sr.data.0()
     u <- unit()
   par(yaxs='i',bty='u',las=1,mar=c(4,4,4,10))
@@ -885,15 +968,17 @@ Bayesdata <- reactive({
   return(out)
   })
 
+
 # Select Bayes model 
-Bayesmodel <- reactive({model_select(input$Model,input$add)})
+Bayesmodel <- reactive({model_select(input$Model,input$add,input$SS)})
 
 # Model Name 
 model.name <- reactive({
   xp <- sr.data()
   add <- ifelse(input$add=="ar1","AR1",ifelse(input$add=="kf","TVA","ST"))
+  ss <- ifelse(isTRUE(input$SS),'SS','')
   yrs <- paste(min(xp$Yr),'-',max(xp$Yr))
-  model <- paste(input$Model,add,yrs,sep='_')
+  model <- paste(input$Model,ss,add,yrs,sep='_')
   return(model)
  })
 
@@ -1062,7 +1147,7 @@ output$astar <- renderUI({
  cuty <- lnalphais()$cuty
  radioButtons(inputId="alphai","Time Variant alpha Select Periods",
                choices=c("None",cuty$txt),
-               selected = NULL)
+               selected = "None")
   }
  })
 
@@ -1149,22 +1234,42 @@ if(input$add=='kf'){
 #-------------------------------------------------------------------------------
 # SR.pred ---- Bayesian Model Prediction ---------------------------------------
 #-------------------------------------------------------------------------------
-SR.pred <-reactive({
+SR.pred1 <-reactive({
   srmodel <- Bayesmodel()$model
 #---------- Extract MCMC SR Model Parameters -----------------------------------
   D <- Bayesdata()$d
 #---------- Determine model S length -------------------------------------------
   Seq <- quantile(SR.post()$Seq,0.9)   # Extract 90 percentile Seq
   max.s <- max(Seq,max(sr.data.0()$S)) # Extract max spawner 
-  if(input$add != 'kf') {
-    out <- SR.pred.sim(SR.post(),D,max.s,srmodel,input$add,input$target)
-   } else if(input$alphai == 'None'){
-    out <- SR.pred.sim(SR.post(),D,max.s,srmodel,input$add,input$target)
-   } else {
-    out <- SR.pred.sim(SR.post.i(),D,max.s,srmodel,input$add,input$target)     
+  if(input$add == 'kf') {
+    req(input$alphai)
+    if(input$alphai == 'None'){
+    out <- SR.pred.sim(SR.post(),D,max.s,srmodel,input$add)
+    } else {
+    out <- SR.pred.sim(SR.post.i(),D,max.s,srmodel,input$add)     
     }
+  } else {
+    out <- SR.pred.sim(SR.post(),D,max.s,srmodel,input$add)     
+   }
   return(out)
  })  
+
+SR.pred <-reactive({
+  pred <-SR.pred1()
+  out <- list()
+  out$S <- pred$S
+  if(input$target =='me'){
+    out$R <- pred$R.c
+    out$Y <- pred$Y.c
+  } else {
+    out$R <- pred$R
+    out$Y <- pred$Y
+  }
+  out$R.p <- pred$R.p
+  out$Y.p <- pred$Y.p
+  return(out)
+})  
+
 
 # SRp ------ Model predicted mean, CI, PI  SR range ----------------------------
 SRp <- reactive({
@@ -2523,31 +2628,34 @@ MSE.sum <- reactive({
   }
   return(out) 
 })
+output$Tbl_mse <- renderDataTable({aggregate(length~rep+crit,FUN=sum, data=MSE.sum())})  
 
 output$sims.out <- renderPrint({
   fail.sum <- aggregate(length~rep+crit,FUN=sum, data=MSE.sum())
-  fail.sum.w <- 100*dcast(fail.sum,rep~crit)/input$simy
+  fail.sum.w <- dcast(fail.sum,rep~crit)
   fail.sum.w[is.na(fail.sum.w)]<- 0
   return(summary(fail.sum.w[,-1]))
  })
 
-
+#-------------------------------------------------------------------------------
+#  Estimate frequencies of 
+#-------------------------------------------------------------------------------
 output$sims.out2 <- renderText({
   dat<- MSE.sum()
   fail.Esc <- dim(dat[which(dat$crit=='EG' & dat$length>=input$conLEsc),])[1]/input$nsim
   fail.Hm <- dim(dat[which(dat$crit=='Hm' & dat$length>=input$conminH),])[1]/input$nsim
   fail.H0 <- dim(dat[which(dat$crit=='H0' & dat$length>=input$con0H),])[1]/input$nsim
-  t.H0 <- paste('Complete fishery closure:',round(round(100*fail.H0),0),'%')
-  t.Hmin <- paste('Below minimum harvest target:',round(100*fail.Hm,0),'%')
-  t.EG <- paste('Not meeting escapement goal:',round(100*fail.Esc,0),'%')
-  out <- paste(t.H0,t.Hmin, t.EG,sep='\n')
+  head <- paste('During',input$simy,'years')
+  
+  t.H0 <- paste('Complete fishery closure more than',input$con0H,'consecutive years',round(100*fail.H0,0),'%')
+  t.Hmin <- paste('Below minimum harvest more than',input$conminH,'consequtive years',round(100*fail.Hm,0),'%')
+  t.EG <- paste('Below escapement goal more than',input$conLEsc,'consequtive years',round(100*fail.Esc,0),'%')
+  out <- paste(head, t.H0,t.Hmin, t.EG,sep='\n')
   return(out)
   
 })
 
 output$Txt_sum.mse <- renderPrint({
-#    j <- as.numeric(input$sim.rep)
-#   x <- msesim()[[j]][,c('N','S','H')]
     simout <- do.call("cbind", msesim())
     x <- simout[,c('N','S','H')]
     min <- sapply(x,min, na.rm=TRUE)

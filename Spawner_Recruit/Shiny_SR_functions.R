@@ -6,6 +6,52 @@
 #  1.0  Input data manipulation
 #===============================================================================
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  1.1  age.out:   Read run data and get age range out 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+age.out <- function(agedata){
+  eage <- names(agedata)[substr(names(agedata),1,1) =='a']
+  rage <- names(agedata)[substr(names(agedata),1,1) =='A']
+  if(length(eage)>0){
+    eage <- as.numeric(substr(eage,2,5))
+    if(is.na(sum(eage))){age<- NULL}else{age <- floor(eage)+ 10*(eage-floor(eage))+1}
+   } else if(length(rage)>0){
+    age <- as.numeric(substr(rage,2,3))
+    if(is.na(sum(age))){age<- NULL}	
+   } else {age<- NULL}
+  return(age)
+}
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#  1.1  make.age:   Read run data and create age data 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+make.age <- function(agedata,min.age,max.age,combine=FALSE){
+  eage <- names(agedata)[substr(names(agedata),1,1) =='a']
+  rage <- names(agedata)[substr(names(agedata),1,1) =='A']
+  if(length(eage)>0){
+    ac <- data.frame(t(agedata[,eage]))
+    # Create European Age  fw.sw
+    ac$eage <-as.numeric(substr(rownames(ac),2,5))
+    # Convert European to Actual Age: freshwater age + seawater age + 1
+    ac$age <- round(with(ac, floor(eage)+ 10*(eage-floor(eage)))+1)
+  } else if(length(rage)>0){
+    ac <- data.frame(t(agedata[rage]))
+    ac$age <- round(as.numeric(substr(rownames(ac),2,3)))
+  }
+# Combine   
+  if(combine == FALSE){ 
+    ac <- ac[which(ac$age>=min.age & ac$age<=max.age),]
+  } else if(combine == TRUE) {
+    ac$age <- with(ac, ifelse(age<min.age,min.age,ifelse(age >max.age,max.age,age)))
+  }
+  # combine age 
+  t.ac <- aggregate(.~age,sum,data=ac[,names(ac) != 'eage'])
+  age <- t.ac$age
+  t.ac <-data.frame(t(t.ac[,names(t.ac) != 'age']))
+  names(t.ac) <- paste0('A',age)
+  return(t.ac)
+}
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  1.1  maake.brood:   Read run data and create brood table and SR data
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 make.brood <- function(data,fage){
@@ -49,7 +95,7 @@ make.brood <- function(data,fage){
   }
   # Create SR data 
   SR <- brood[complete.cases(brood),c('b.Year','Spawner','Recruit')]
-  out <- list(brood=brood,SR=SR)
+  out <- list(brood=brood,SR=SR,N = data)
   # Output data is a list data    
   return(out)
 }
@@ -62,6 +108,13 @@ make.brood <- function(data,fage){
    return(x)
  }
 
+# Cut raw data based on brood years   
+ cut.N.data <- function(data, years,lyear){
+   x <- data[data[,1]>=years[1] & data[,1]<=(years[2]+lyear),]
+   return(x)
+ }
+ 
+ 
 #===============================================================================
 #  2.0  Percentile Method 
 #===============================================================================
@@ -108,12 +161,12 @@ tier_goals <- function(S){
 #  2.3  Tier EG 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 tier_EG <- function(tier,S,EG){
-contrast <- round(max(S)/min(S),1)
- if(tier == "Tier 1") { e.g <- EG[1,]
-} else if(tier == "Tier 2") { e.g <- EG[2,]     
-} else if(tier == "Tier 3") { e.g <- EG[3,]       
-}
-out <- HTML(paste(paste(tier,"Escapement goal range"),
+    contrast <- round(max(S)/min(S),1)
+        if(tier == "Tier 1") { e.g <- EG[1,]
+           } else if(tier == "Tier 2") { e.g <- EG[2,]     
+           } else if(tier == "Tier 3") { e.g <- EG[3,]       
+           }
+  out <- HTML(paste(paste(tier,"Escapement goal range"),
            paste("Escapement Contrast:",contrast),
            paste0(round(e.g[1],0)," - ",round(e.g[2],0)),sep = '<br/>'))
  return(out)
@@ -154,8 +207,9 @@ sum.fun <- function(x,ci){
   uci <- sapply(x,quantile, prob=1-p, na.rm=TRUE)
   mean <- sapply(x,mean, na.rm=TRUE)
   median <- sapply(x,median, na.rm=TRUE)
-  out <- rbind(min,lci,mean,median,uci,max)
-  rownames(out) <- c('Min',paste0(100*p,'%'),'Mean','Median',paste0(100*(1-p),'%'),'Max')
+  sd <- sapply(x,sd, na.rm=TRUE)
+  out <- rbind(min,lci,mean,median,uci,max,sd)
+  rownames(out) <- c('Min',paste0(100*p,'%'),'Mean','Median',paste0(100*(1-p),'%'),'Max','SD')
   return(out)
  }
 
@@ -230,15 +284,10 @@ sim.out <- function(sim,d,add,model,model.br){
 # 4.0  SR.pred.sim:  Read simulation data, and create  
 #   Create predicted Recruit and Yield (CI,PI) at given S
 #-------------------------------------------------------------------------------
-SR.pred.sim <-function(SRpar,D,max.s,srmodel,add, target){
+SR.pred.sim <-function(SRpar,D,max.s,srmodel,add){
 #---------- Extract MCMC SR Model Parameters -----------------------------------
 # Mean or Median prediction-----------------------------------------------------  
-  if(target=='me'){
-    lnalpha.m <- SRpar$lnalpha.c
-  } else {
-    lnalpha.m <- SRpar$lnalpha        
-  }
-  
+  lnalpha.c <- SRpar$lnalpha.c  
   lnalpha <- SRpar$lnalpha 
   beta <- SRpar$beta
 # Extract sigma-----------------------------------------------------------------  
@@ -259,27 +308,32 @@ SR.pred.sim <-function(SRpar,D,max.s,srmodel,add, target){
 # Get the number of simulation (row)  
   nrow <- length(lnalpha)  
 # Create Expected mean and observed Recruit MCMC matrix    
-  mc.R <- matrix(NA,nrow=nrow,ncol=201)   # Model expected recruit -------------
+  mc.R <- matrix(NA,nrow=nrow,ncol=201)   # Model expected recruit Median -------------
+  mc.R.c <- matrix(NA,nrow=nrow,ncol=201)   # Model expected recruit Mean -------------
   mc.R.p <- matrix(NA,nrow=nrow,ncol=201) # Model expected observed recruit-----
 #---------- Calculate expected returns from each MCMC ------------------------ 
   for(i in 1:nrow){
     # Calculate expected Returns form each MCMC SR model parameters
 # mc.R is Median Recruit when target is Median, and Mean Recruit when target is Mean
-    mc.R[i,] <- srmodel(lnalpha.m[i],beta[i],S,D)
-# mc.R.p adds observation error (sigma): this case no lognormal correction is needed 
+    mc.R[i,] <- srmodel(lnalpha[i],beta[i],S,D)
+    mc.R.c[i,] <- srmodel(lnalpha.c[i],beta[i],S,D)
+    # mc.R.p adds observation error (sigma): this case no lognormal correction is needed 
     mc.R.p[i,] <- exp(rnorm(201,log(srmodel(lnalpha[i],beta[i],S,D)),sigma[i]))
   }  
 # Create expected mean/median (mc.Y) and observed Yield (mc.Y.p) matrix
 #  Expected Median or Mean Yield
   mc.Y <-  t(t(mc.R)-S) 
+  mc.Y.c <-  t(t(mc.R.c)-S) 
 #  Expected Annual Yield
   mc.Y.p <-  t(t(mc.R.p)-S) 
 #------  Create Output list file -----------------------------------------------  
   out <- list()
   out$S <- S
   out$R <- mc.R
+  out$R.c <- mc.R.c
   out$R.p <- mc.R.p
   out$Y <- mc.Y
+  out$Yc <- mc.Y.c
   out$Y.p <- mc.Y.p
   return(out)
 }
@@ -301,10 +355,8 @@ pred_CI<- function(SR.pred, CI) {
 # Mean RS (Trim mean)
   RS.me <- apply(Pred$R.p,2,function(x) mean(x, trim=0.01))
 # Calculate Lower and upper CI-PI
-# Lower CI 
   Rl <- apply(Pred$R,2,function(x) quantile(x, pci))
-# Upper CI   
-  Ru <-  apply(Pred$R,2,function(x) quantile(x, 1-pci))
+  Ru <-  apply(Pred$R,2,function(x) quantile(x, 1-pci))    
 # Lower PI   
   Rl.p <- apply(Pred$R.p,2,function(x) quantile(x, pci))
 # Upper PI    
