@@ -28,11 +28,13 @@ library(coda)         # used to read MCMC data
 library(R2jags)       # used to run JAGS
 library(openxlsx)     # used for creating EXCEL output table  
 library(officedown)   # used to create Word doc
+#library(flextable)    # used to make tables
+library(ggplot2)      #ggplot
 options(scipen=999)   # Do not show Scientific notation
-source("Shiny_modules.R")
-source("Shiny_SR_functions.R")
-source("Shiny_Bayes_modules.R")
-#source("ggplot_theme.r")  # Include ggplot
+source("Shiny_modules.R")   #  Module codes 
+source("Shiny_SR_functions.R")   #  All functions created and used in this app 
+source("Shiny_Bayes_modules.R")  #  Modules related to Bayesian model 
+source("ggplot_theme.r")  # Include ggplot
 #===============================================================================    
 #  UI:  
 #===============================================================================
@@ -55,7 +57,7 @@ ui<-fluidPage(
 selectInput(inputId="dataType","Data Type", choices = c('Run','S-R','Escapement Only')),
 checkboxInput(inputId="Sample", "Inport Sample Data", FALSE), 
 #-------------------------------------------------------------------------------    
-# Module:  File Inuput  
+# Module:  File Input  
 #-------------------------------------------------------------------------------
 # File Input module 
   dataInputUI("datain", "User data (.csv format)"),
@@ -411,14 +413,14 @@ navbarMenu("MSE Analyses",
 #  Simulation model UI
 #-------------------------------------------------------------------------------  
  tabPanel("Simulation Model",
-  sidebarPanel(width = 4,        
+  sidebarPanel(width = 3,        
    conditionalPanel(condition="input.MSEPanel == 'Simulation Run'",           
     p(strong("Escapement Goal")), 
      fluidRow(
       column(6,uiOutput('LEG')),  
       column(6,uiOutput('UEG'))
       ),
-    p(strong("Fishery Harvest")),  
+    p(strong("Fishery Target & Capacity")),  
      fluidRow(
       column(6,uiOutput('minH')),  
       column(6,uiOutput('maxH')),
@@ -437,16 +439,15 @@ navbarMenu("MSE Analyses",
 #    numericInput(inputId="EG.rev", "Escapement Goal Review Frequency", value=0,,min=0,max=20,step=1),
      fluidRow(
        column(6,uiOutput('nsim')),  
-       column(6,uiOutput('sim.rep')),
          ),
     actionButton("SimRun","Simulate"),
-    actionButton("show", "Show model dialog"),   
+    actionButton("show", "Help"),   
 #                     ),
   p(strong("Management % Error")),  
     fluidRow(
      column(6,numericInput(inputId="spred", "Run Assessment", value=15,min=0,max=100,step=5),
       ),
-     column(6,numericInput(inputId="simpH", "Inprementation", value=10,min=0,max=100,step=5),
+     column(6,numericInput(inputId="simpH", "Inplementation", value=10,min=0,max=100,step=5),
       ),
     ),
     
@@ -460,7 +461,10 @@ navbarMenu("MSE Analyses",
     numericInput(inputId="conLEsc", "Escapement", value=3,min=1,max=10),
     numericInput(inputId="conminH", "Minimum Harvest", value=3,min=1,max=10),
     numericInput(inputId="con0H", "No Fishery", value=3,min=1,max=10),
-      )              
+      ),
+conditionalPanel(condition="input.MSEPanel == 'Sim replicates'",
+  uiOutput('sim.rep')
+ )
       ), #End sidebarPanel
                     
 #---------------- mainPanel ----------------------------------------------------
@@ -473,29 +477,31 @@ navbarMenu("MSE Analyses",
       fluidRow(  
         selectInput(inputId="pltmse","Plot", 
                     choices = c('Run','Escapement','Harvest'),selected = 'Run'),
-        plotOutput(height='500px',"simplot")
+        plotOutput(height='500px',"Plt_mse")
            ),
-      fluidRow( 
+#      fluidRow( 
 #          column(3, actionButton("InitRun","Initialize")),
 #          column(3, actionButton("SimRun","Simulate")),
 #          column(3,actionButton("SimClear","Clear Results"))
-                  ),
-      fluidRow(  
-#          plotOutput(height='500px',"runsim"),
+#                  ),
         verbatimTextOutput("Txt_sum.mse"),
         plotOutput("Plt_sum.mse")
-                  )
                   ), #End tabPanel
     tabPanel("Sim Summary",
       verbatimTextOutput('sims.out2') ,
-       verbatimTextOutput("Txt_HE_mse")
+       verbatimTextOutput("Txt_HE_mse"),
+       plotOutput('Plt_freq_mse')
                   ), #End tabPanel
                         
-    tabPanel("Sim time series",
-          verbatimTextOutput('sims.out'),
-          dataTableOutput('Tbl_mse')
+    tabPanel("Sim replicates",
+           plotOutput(height='500px','Plt_mse_rep'),  
+           verbatimTextOutput("Txt_rep.mse"),
+           plotOutput("Plt_rep.mse"),
+           verbatimTextOutput('sims.out'),
+           verbatimTextOutput('sims.out.rep') ,  
+#          dataTableOutput('Tbl_mse')
 #          plotOutput(height='600px',"altsim.N"), 
-#          downloadButton("simdownload", "Download")
+          downloadButton("simdownload", "Download")
                   ),  #End tabPanel
                         
 #------------------ Model Parameters ---------------------------------   
@@ -606,7 +612,11 @@ p(strong("Missed escapement passage estimation:",
 #  Server:  
 #===============================================================================
 server<-shinyServer(function(input, output, session){
-output$note <- reactive({
+#-------------------------------------------------------------------------------
+# ggplot theme set 
+theme_set(theme_simple()) 
+#-------------------------------------------------------------------------------
+  output$note <- reactive({
    HTML(
    if(input$dataType== "S-R"){
       paste("S-R Data file column orders:", "Year, Spawner (Escapement), Recruit",sep = '<br/>')
@@ -618,7 +628,7 @@ output$note <- reactive({
             sep = '<br/>')
     } else if(input$dataType== "Escapement Only") {
       paste("Escapement only Data file column orders: Year, Escapement")
-   }else if(dim(data())[1]>0){ NULL} 
+   }
     ) # End HTML
   })
 output$note2 <- renderUI({
@@ -677,6 +687,8 @@ observe({
   
 # Data file reading module  
 data1 <-  dataInputServer("datain")
+
+# Choose data 
   
 data <- reactive({
   if(isTRUE(input$Sample)){
@@ -688,7 +700,6 @@ data <- reactive({
    out <- data1()
   }
   return(out)
-
 })
       
 
@@ -725,7 +736,7 @@ data <- reactive({
   output$agecomb <- renderUI({
     if(length(input$rage[1])>0){
       #  Slider input UI 
-      checkboxInput("combage", label = "Combine Ages", value = FALSE)
+      checkboxInput("combage", label = "Pool Ages", value = TRUE)
         } 
   })
   
@@ -809,7 +820,12 @@ output$yrange <- renderUI({
      par(yaxs='i',bty='l')
      plot(R/u~Yr,data=dat,type='l',ylim=c(0,with(dat,max(R,S,na.rm =TRUE)/u)),xlab='',ylab='')
      lines(S/u~Yr,data=dat,lty=2)
-   }
+ }
+#plot_runesc <- function(dat,u){
+# ggplot() + ylim(0, 100)+c(0,with(dat,max(R,S,na.rm =TRUE)/u))+     
+# geom_line(data = dat, aes(x=Yr,y=R/u))+geom_line(data = dat, aes(x=Yr,y=S/u),linetype = "dashed")
+#}
+ 
  add_legend <- function(...) {
    plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n',xlab='',ylab='')
    legend(...)
@@ -817,31 +833,53 @@ output$yrange <- renderUI({
 
 # Plt_runesc --- Plot Run-Escapement Time series (when data is "Run") --------------
 # Plot object: runesc 
+# runesc <- reactive({
+#   if(input$dataType== "Run"){
+#      x <- data()[,c(1:3)]
+#      names(x) <-c('Yr','S','R')
+      # Calculate Harvest rate 
+#      x$hrate <- with(x,(R-S)/R)
+#      u <- unit()
+#      p1 <- plot_runesc(x,u)
+#      p1 <- p1 + 
+
+#      plot(hrate~Yr, data=x,type = "l", xaxt = "n",yaxt = "n",xlab='',ylab='',ylim=c(0,1),col=2)
+#      axis(side = 4)
+#      mtext("Harvest rate",side=4,line=2.5,las=0)
+#      title("Run and Escapement", xlab="Year",
+#            ylab=paste('Run / Escapement',mult(u))) 
+#      add_legend("topright",legend=c('Run','Esc','H rate'),lty=c(1,2,1),
+#             col=c(1,1,2), box.lty=0,xpd=TRUE)  
+#----  Plots Output ------------------------------------------------------------  
+#      out <-recordPlot()  
+#      return(out)    
+#     }
+#   })
+
  runesc <- reactive({
    if(input$dataType== "Run"){
-      layout(matrix(1:2, ncol=2), widths=c(2, 0.5))
-      x <- data()[,c(1:3)]
-      names(x) <-c('Yr','S','R')
-      u <- unit()
-      par(mar=c(4,4,4,4),las=1)
-      plot_runesc(x,u)
-      # Calculate Harvest rate 
-      x$hrate <- with(x,(R-S)/R)
-      par(new = TRUE)
-      plot(hrate~Yr, data=x,type = "l", xaxt = "n",yaxt = "n",xlab='',ylab='',ylim=c(0,1),col=2)
-      axis(side = 4)
-      mtext("Harvest rate",side=4,line=2,las=0)
-      title("Run and Escapement", xlab="Year",
-            ylab=paste('Run / Escapement',mult(u))) 
-#      plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n',xlab='',ylab='')
-      add_legend("topright",legend=c('Run','Escapement','Harvest rate'),lty=c(1,2,1),
-             col=c(1,1,2), box.lty=0,xpd=TRUE)  
-#----  Plots Output ------------------------------------------------------------  
-      out <-recordPlot()  
-      return(out)    
-     }
-   })
-
+     layout(matrix(1:2, ncol=2), widths=c(3, 0.5))
+     x <- data()[,c(1:3)]
+     names(x) <-c('Yr','S','R')
+     u <- unit()
+     par(mar=c(4,4,4,4),las=1)
+     plot_runesc(x,u)
+     # Calculate Harvest rate 
+     x$hrate <- with(x,(R-S)/R)
+     par(new = TRUE)
+     plot(hrate~Yr, data=x,type = "l", xaxt = "n",yaxt = "n",xlab='',ylab='',ylim=c(0,1),col=2)
+     axis(side = 4)
+     mtext("Harvest rate",side=4,line=2.5,las=0)
+     title("Run and Escapement", xlab="Year",
+           ylab=paste('Run / Escapement',mult(u))) 
+     add_legend("topright",legend=c('Run','Esc','H rate'),lty=c(1,2,1),
+                col=c(1,1,2), box.lty=0,xpd=TRUE)  
+     #----  Plots Output ------------------------------------------------------------  
+     out <-recordPlot()  
+     return(out)    
+   }
+ })
+ 
 output$Plt_runesc <- renderPlot({runesc()})
 
 # Plt_agecompr --- Plot Rum Age comp Time series (when data is "Run") ----------
@@ -859,20 +897,27 @@ output$Plt_agecompr <- renderPlot({
 
 
 # Plt_srt ---------- Plot SR time series ---------------------------------------
-output$Plt_srt <- renderPlot({
-  if(input$dataType != if(input$dataType== "Run"){out <- read.csv('Sample_Run_data.csv',header=T)} ){
+srt <- reactive({
+  if(input$dataType != 'Escapement Only'){
+  layout(matrix(1:2, ncol=2), widths=c(3, 0.5))  
     x <- sr.data.0()
     u <- unit()
-  par(yaxs='i',bty='u',las=1,mar=c(4,4,4,10))
+  par(yaxs='i',bty='u',las=1,mar=c(4,4,4,4))
    plot(R/u~Yr,data=x,type='l',ylim=c(0,with(x,max(R,S)/u)),xlab='',ylab='')
    lines(S/u~Yr,data=x,lty=2)
   par(new = TRUE)
-   plot(log(R/S)~Yr, data=x,type = "l", xaxt = "n",yaxt = "n",xlab='',ylab='',col=4)
+   plot((R/S)~Yr, data=x,type = "l", ylim=c(0,with(x,max(R/S))),xaxt = "n",yaxt = "n",xlab='',ylab='',col=4)
    axis(side = 4)
-   mtext("ln(R/S)",side=4,line=2,las=0)
-  legend('topright',c('Spawner','Recruit','ln(R/S)'),lty=c(2,1,1),col=c(1,1,4),box.lty=0,xpd=TRUE, inset=c(-0.25,0))  
-  title("Spawner and Recruit", xlab="Brood Year", ylab=paste('Spawner / Recruit',mult(u))) 
-  } else {
+   mtext("R/S",side=4,line=2.5,las=0)
+   title("Spawner and Recruit", xlab="Brood Year", ylab=paste('Spawner / Recruit',mult(u))) 
+   # Add Cutting data 
+   if(max(input$sryears)<max(x$Yr)|min(input$sryears)>min(x$Yr)){
+#     with(x,polygon(c(min(Yr),min(input$sryears),min(input$sryears),min(Yr)),c(0,0,max(R/u),max(R/u)),col=tcol('grey',50),border=NA))
+#     with(x,polygon(c(max(Yr),max(input$sryears),max(input$sryears),max(Yr)),c(0,0,max(R/u),max(R/u)),col=tcol('grey',50),border=NA))
+     abline(v=input$sryears,col=2)
+     } 
+   add_legend('topright',c('Spawner','Recruit','R/S'),lty=c(2,1,1),col=c(1,1,4),box.lty=0,xpd=TRUE)  
+    } else {
     x <- e.data.0()
     u <- unit()
     multi <- mult(u)  
@@ -880,12 +925,18 @@ output$Plt_srt <- renderPlot({
     plot(S/u~Yr,data=x,type='l',ylim=c(0,with(x,max(S,na.rm=TRUE)/u)),xlab='',ylab='')
     title("Escapement", xlab="Year",
           ylab=paste('Escapement',mult(u))) 
+    # Add Cutting data 
+    if(max(input$sryears)<max(x$Yr)|min(input$sryears)>min(x$Yr)){
+      abline(v=input$sryears,col=2)
    }
-  # Add Cutting data 
-  if(max(input$sryears)<max(x$Yr)|min(input$sryears)>min(x$Yr)){
-  abline(v=input$sryears,col=2)
+
   }
+#----  Plots Output ------------------------------------------------------------  
+  out <-recordPlot()  
+  return(out)      
 })
+
+output$Plt_srt <- renderPlot({srt()})
 
 # Plt_lnsrt ---------- Plot SR time series -------------------------------------
 output$Plt_lnsrt <- renderPlot({
@@ -1063,6 +1114,7 @@ hist.mc <- reactive({
   D <- Bayesdata()$d
   if(input$add=='ar1'){ar1<- TRUE} else {ar1<- FALSE}
   plot_density(SR.post(),D,ar1,model=input$Model,target=input$target)
+#--- Plot output----------------------------------------------------------------  
   out <-recordPlot()
   return(out)  
  })
@@ -1283,7 +1335,7 @@ output$downloaddMCMC <- downloadHandler(
     paste0('MCMCdata_', model.name(),'_', Sys.Date(),'.csv')
   },
   content = function(file) {
-    write.csv(SR.post(), file,row.names = FALSE)
+    write.csv(as.data.frame(SR.pred()$Y), file,row.names = FALSE)
   }
 )
 
@@ -1721,15 +1773,18 @@ numinput <- function(dat,p=0.5){
 
 #---- UI Output-----------------------------------------------------------------
 output$minYield = renderUI({
-  v <- numinput(sr.data()$R-sr.data()$S,0.5)
-  numericInput("y1", "Min Yield", value=v[1],min=0, step=v[2])
+  u <- as.numeric(unit())
+  mult <- mult(u)
+  v <- numinput(sr.data()$R-sr.data()$S,0.5)/u
+  numericInput("y1", paste("Min Yield",mult), value=v[1],min=0, step=v[2])
 })
 
 
 #----- Yield Goal Simulation ---------------------------------------------------
 Yield_gl_sim <- reactive({
-  mc.Ypm <- Prob.calc(SR.pred()$Y,input$y1)
-  mc.Ypa <- Prob.calc(SR.pred()$Y.p,input$y1)
+  u<- as.numeric(unit())
+  mc.Ypm <- Prob.calc(SR.pred()$Y,input$y1*u)
+  mc.Ypa <- Prob.calc(SR.pred()$Y.p,input$y1*u)
   out <- list(mc.Yp=mc.Ypm, mc.Ypa=mc.Ypa)
   return(out)
   })
@@ -1739,7 +1794,7 @@ Yield_gl_sim <- reactive({
 output$Plt_yield.prof <- renderPlot({
   u <- as.numeric(unit())
   mult <- mult(u)
-  yg <- input$y1
+  yg <- input$y1*u
   ypg <- input$y1p/100
   S <- SR.pred()$S/u
   mc.Yp <- Yield_gl_sim()$mc.Yp
@@ -1752,7 +1807,8 @@ output$Plt_yield.prof <- renderPlot({
   abline(h = ypg,lwd=2,col=2)
   BEG.p <- Yield_gl()/u 
   polygon(c(BEG.p[1,],rev(BEG.p[1,])),c(c(0,0),c(1,1)),col=tcol(3,80),border=NA)
-  tex <- ifelse(input$target =='me','Mean','Median')
+  polygon(c(BEG.p[2,],rev(BEG.p[2,])),c(c(0,0),c(1,1)),col=tcol(4,80),border=NA)
+    tex <- ifelse(input$target =='me','Mean','Median')
   legend('topright',legend=c(tex,'Annual'),lty=c(1,2), box.lty=0)
   }) 
 
@@ -1786,8 +1842,8 @@ output$Txt_Yield_gl <-renderText({
 # Yield Plot 
 output$Plt_yield.gl <- renderPlot({
   u <- as.numeric(unit())
-  BEG.p <- Yield_gl()/u 
-  plot_range('y',base.y(),sr.data(),SRp(),BEG.p[1,],BEG.p[2,],input$y1,u)
+  BEG.p <- Yield_gl()
+  plot_range('y',base.y(),sr.data(),SRp(),BEG.p[1,],BEG.p[2,],input$y1*u,u)
 #  yg <- input$y1/u
 #  abline(h=yg,lwd=2,col=2)
     }) 
@@ -1797,13 +1853,16 @@ output$Plt_yield.gl <- renderPlot({
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  
 #---- UI Output----------------------------------------------------------------------
 output$minRec <- renderUI({
-  v <- numinput(sr.data()$R,0.5)
-  numericInput("r1", "Min Recruit", value=v[1],min=0, step=v[2])
+  u <- as.numeric(unit())
+  mult <- mult(u)
+  v <- numinput(sr.data()$R,0.5)/u
+  numericInput("r1", paste("Min Recruit",mult), value=v[1],min=0, step=v[2])
 })
 
 Rec_gl_sim <- reactive({
-  Rp <- Prob.calc(SR.pred()$R,input$r1)
-  Rpa <- Prob.calc(SR.pred()$R.p,input$r1)
+  u <- as.numeric(unit())
+  Rp <- Prob.calc(SR.pred()$R,input$r1*u)
+  Rpa <- Prob.calc(SR.pred()$R.p,input$r1*u)
   out <- list(Rp=Rp, Rpa = Rpa)
   return(out)
 })
@@ -1831,16 +1890,16 @@ Rec_gl <- reactive({
 # Recruit Plot 
 output$Plt_rec.gl <- renderPlot({
   u <- as.numeric(unit())
-  BEG.p <- Rec_gl()/u
-  plot_range('r',base.r(),sr.data(),SRp(),BEG.p[1,],BEG.p[2,],input$r1,u)
+  BEG.p <- Rec_gl()
+  plot_range('r',base.r(),sr.data(),SRp(),BEG.p[1,],BEG.p[2,],input$r1*u,u)
   }) 
 
 #  Minimum Recruit Profile Plot 
 output$Plt_rec.prof <- renderPlot({
-  rg <- input$r1
-  rpg <- input$r1p/100
   u <- as.numeric(unit())
   mult <- mult(u)
+  rg <- input$r1*u
+  rpg <- input$r1p/100
   S <- SR.pred()$S/u
   Rp <- Rec_gl_sim()$Rp
   Rpa <- Rec_gl_sim()$Rpa  
@@ -1872,24 +1931,32 @@ output$Txt_Rec_gl <-renderText({
 #===============================================================================
 #---- UI Output Lower Goal -----------------------------------------------------
 output$minEG <- renderUI({
-  v <- numinput(data()[,2],0.25)
-  numericInput("lg", "Lower", value=v[1],min=0, step=v[2])
+  u <- as.numeric(unit())
+  mult <- mult(u)
+  v <- numinput(data()[,2],0.1)/u
+  numericInput("lg", paste("Lower",mult), value=v[1],min=0, step=v[2])
  })
 #---- UI Output Upper Goal -----------------------------------------------------
 output$maxEG <- renderUI({
-  v <- numinput(data()[,2],0.75)
-  numericInput("ug", "Upper", value=v[1],min=0, step=v[2])
+  u <- as.numeric(unit())
+  mult <- mult(u)
+  v <- numinput(data()[,2],0.75)/u
+  numericInput("ug", paste("Upper",mult), value=v[1],min=0, step=v[2])
 })
 
 #---- UI Output Minimum Yield --------------------------------------------------
 output$cyg = renderUI({
-  v <- numinput(sr.data()$R-sr.data()$S,0.25)
-  numericInput("yg", "Min Target Yield", value=v[1],min=0, step=v[2])
+  u <- as.numeric(unit())
+  mult <- mult(u)
+  v <- numinput((sr.data()$R-sr.data()$S),0.25)/u
+  numericInput("yg", paste("Min Target Yield",mult), value=v[1],min=0, step=v[2])
 })
 #---- UI Output Minimum Recruit ------------------------------------------------
 output$crg = renderUI({
-  v <- numinput(sr.data()$R,0.25)
-  numericInput("rg", "Min Target Recruit", value=v[1],min=0, step=v[2])
+  u <- as.numeric(unit())
+  mult <- mult(u)
+  v <- numinput(sr.data()$R,0.25)/u
+  numericInput("rg", paste("Min Target Recruit",mult), value=v[1],min=0, step=v[2])
 })
 
 #-------------------------------------------------------------------------------
@@ -1898,14 +1965,17 @@ output$crg = renderUI({
 plt_msyprof_c1 <- reactive({
   u <- as.numeric(unit())
   replayPlot(plt.msy.prof())
-  SS <- c(input$lg,input$ug)/u
+  SS <- c(input$lg,input$ug)
+  if(SS[1]==SS[2]){lines(SS,c(0,1),col=3,lwd=3)
+    } else{
   polygon(c(SS,rev(SS)),c(c(0,0),c(1,1)),col=tcol(3,80),border=NA)
+  }
   #  Add legends 
   percent <- c(90,80,70,as.numeric(p.msy()))
   EG.pf <- (data.frame(S=EG.Smsy()$S,t(EG.Smsy.st()$S.prof.st),EG.Smsy()$S.prof))
-  EG.p <- EG.pf[EG.pf$S>=input$lg,]
+  EG.p <- EG.pf[EG.pf$S>=input$lg*u,]
   pl <- round(EG.p[1,-1]*100,0)
-  EG.p <- EG.pf[EG.pf$S>=input$ug,]
+  EG.p <- EG.pf[EG.pf$S>=input$ug*u,]
   pu <- round(EG.p[1,-1]*100,0)
   txt <- c(paste(percent,'%','MSY','acheiving',pl,' - ',pu,'%')) 
   legend("right", legend= txt, lwd=c(1,1,1,2), lty=c(1,2,4,1),
@@ -1923,14 +1993,17 @@ output$plt_msyprof_c <- renderPlot({plt_msyprof_c1()})
 plt_maxprof_c1 <- reactive({
   u <- as.numeric(unit())
   replayPlot(plt.max.prof())
-  SS <- c(input$lg,input$ug)/u
+  SS <- c(input$lg,input$ug)
+  if(SS[1]==SS[2]){lines(SS,c(0,1),col=4,lwd=3)
+  }else {
   polygon(c(SS,rev(SS)),c(c(0,0),c(1,1)),col=tcol(4,80),border=NA)
+  }
   #  Add legends 
   percent <- c(90,80,70,as.numeric(p.max()))
   EG.pf <- (data.frame(S=EG.Smax()$S,t(EG.Smax.st()$S.prof.st),EG.Smax()$S.prof))
-  EG.p <- EG.pf[EG.pf$S>=input$lg,]
+  EG.p <- EG.pf[EG.pf$S>=input$lg*u,]
   pl <- round(EG.p[1,-1]*100,0)
-  EG.p <- EG.pf[EG.pf$S>=input$ug,]
+  EG.p <- EG.pf[EG.pf$S>=input$ug*u,]
   pu <- round(EG.p[1,-1]*100,0)
   txt <- c(paste(percent,'%','RMAX','acheiving',pl,' - ',pu,'%'))
   legend("right", legend= txt, lwd=c(1,1,1,2), lty=c(1,2,4,1),
@@ -1952,9 +2025,10 @@ CG_sim <- eventReactive(input$Run,{
                detail = 'This may take a while...')
   for (i in 1:15) {progress$set(value = i)}
 #----------==-------------------------------------------------------------------   
+  u <- as.numeric(unit())
   #  Import user defined lower and upper goal 
-  lg <- input$lg
-  ug <- input$ug
+  lg <- input$lg*u
+  ug <- input$ug*u
   # create goal range 
   S <- seq(lg,ug,length.out=201)   
   D <- Bayesdata()$d
@@ -1988,17 +2062,17 @@ CG_sim <- eventReactive(input$Run,{
     R.p[i,] <- exp(rnorm(201,log(Ey),sigma[i]))
   } 
 
-# Create expecte mean and observed Yield matrix
+# Create expected mean and observed Yield matrix
   Y.c <- t(t(R.c)-S)
   Y <-  t(t(R)-S) 
   Y.p <-  t(t(R.p)-S) 
 # Remove outliers
-  Y <- Y[Y < quantile(Y,0.995)]
-  Y.c <- Y.c[Y.c < quantile(Y.c,0.995)]  
-  Y.p <- Y.p[Y.p < quantile(Y.p,0.995)]
-  R <- R[R < quantile(R,0.995)]
-  R.c <- R.c[R.c < quantile(R.c,0.995)]
-  R.p <- R.p[R.p < quantile(R.p,0.995)]  
+#  Y <- Y[Y < quantile(Y,0.995)]
+#  Y.c <- Y.c[Y.c < quantile(Y.c,0.995)]  
+#  Y.p <- Y.p[Y.p < quantile(Y.p,0.995)]
+#  R <- R[R < quantile(R,0.995)]
+#  R.c <- R.c[R.c < quantile(R.c,0.995)]
+#  R.p <- R.p[R.p < quantile(R.p,0.995)]  
 #------  Create Output list files ---------------------------------------------  
   # Outputs are mean and annual Yields and recruits within proposed S range.    
   out <- list(S = S, R = R, R.c=R.c,Y = Y, Y.c = Y.c,R.p = R.p, Y.p = Y.p)
@@ -2006,15 +2080,16 @@ CG_sim <- eventReactive(input$Run,{
   })
 
 #-------------------------------------------------------------------------------
-# CG_pct:  Calculate % achiving target yield and recruit 
+# CG_pct:  Calculate % achieving target yield and recruit 
 #-------------------------------------------------------------------------------
 CG_pct <- reactive({
-  rg <- input$rg
+  u <- as.numeric(unit())
+  rg <- input$rg*u
   # Probability of meeting long-term Mean/Median Recruit Target    
   prg <- mean(ifelse(CG_sim()$R>rg,1,0))
   # Probability of meeting annual Mean/Median Recruit Target  
   prgp <- mean(ifelse(CG_sim()$R.p>rg,1,0))
-  yg <- input$yg
+  yg <- input$yg*u
   # Probability of meeting long-term Mean/Median Yield Target  
   pyg <- mean(ifelse(CG_sim()$Y>yg,1,0))
   # Probability of meeting annual Mean/Median Yield Target   
@@ -2030,11 +2105,12 @@ CG_pct <- reactive({
 #-----------------------------------------------------------------------
 Yield_EG <- reactive({
   par(mfrow=c(1,1),xaxs='i',yaxs='i',bty='l',cex=1)
-  u <- unit()
+  u <- as.numeric(unit())
   mult <- mult(u)
-  yg <- input$yg/u
+  yg <- input$yg
   Y.p <-CG_sim()$Y.p/u
-  if (input$target =='me'){
+  Y.p <- Y.p[Y.p < quantile(Y.p,0.995)]
+    if (input$target =='me'){
     Y.m <-CG_sim()$Y.c/u
     m <- mean(Y.p)
      } else {
@@ -2056,11 +2132,12 @@ output$Plt_Yield_EG <- renderPlot({Yield_EG()})
 #-----------------------------------------------------------------------
 Rec_EG <- reactive({
   par(mfrow=c(1,1),xaxs='i',yaxs='i',bty='l', cex=1)
-  u <- unit()
+  u <- as.numeric(unit())
   mult <- mult(u)
-  rg <- input$rg/u
+  rg <- input$rg
   # Annual estimate   
   R.p <-CG_sim()$R.p/u
+  R.p <- R.p[R.p < quantile(R.p,0.995)]  
   if (input$target =='me'){
     R.m <-CG_sim()$R.c/u
     m <- mean(R.p)
@@ -2085,7 +2162,8 @@ output$Txt_Rec_cg <- renderPrint({
     R <- as.vector(CG_sim()$R)
   }
     R.p <- as.vector(CG_sim()$R.p)
-  dat <- data.frame(R,R.p)
+    max_length <- max(c(length(R), length(R.p)))
+   dat <- data.frame(c(R,rep(NA, max_length - length(R))),c(R.p, rep(NA, max_length - length(R.p))))
   tex <- ifelse(input$target =='me','Mean','Median')
   names(dat) <- c(tex,'Annual')
   print(summary(dat),digits=0)
@@ -2099,7 +2177,8 @@ output$Txt_Yield_cg <- renderPrint({
   Y <- as.vector(CG_sim()$Y)
   }
   Y.p <- as.vector(CG_sim()$Y.p)
-  dat <- data.frame(Y,Y.p)
+  max_length <- max(c(length(Y), length(Y.p)))
+  dat <- data.frame(c(Y, rep(NA, max_length - length(Y))),c(Y.p, rep(NA, max_length - length(Y.p))))
   tex <- ifelse(input$target =='me','Mean','Median')
   names(dat) <- c(tex,'Annual')
   print(summary(dat),digits=0)
@@ -2124,13 +2203,19 @@ output$Txt_Yield_pb_cg <- renderText({
 
 # Recruit Plot 
 output$Plt_rec.cg <- renderPlot({
-  plot_range('r',base.r(),sr.data(),SRp(),c(input$lg,input$ug),goal=input$rg,u=as.numeric(unit()))
+  u <-as.numeric(unit())
+  plot_range('r',base.r(),sr.data(),SRp(),c(input$lg,input$ug)*u,u=u)
+  if(input$lg==input$ug){abline(v=input$lg,col=3,lwd=2)}
+  abline(h=input$rg,col=2,lwd=2)
 }) 
 
 # Yield Plot 
 output$Plt_yield.cg <- renderPlot({
-  plot_range('y',base.y(),sr.data(),SRp(),c(input$lg,input$ug),goal=input$yg,u=as.numeric(unit()))
-  }) 
+  u <-as.numeric(unit())
+  plot_range('y',base.y(),sr.data(),SRp(),c(input$lg,input$ug)*u,u=u)
+  if(input$lg==input$ug){abline(v=input$lg,col=3,lwd=2)}
+  abline(h=input$yg,col=2,lwd=2)
+    }) 
 
 #-------------------------------------------------------------------------------
 #  Save multiple Simulation Results
@@ -2300,25 +2385,27 @@ output$Plt_risk2 <- renderPlot({riskout$Plt_risk2()})
 
 #---- UI Output-----------------------------------------------------------------
 output$LEG <- renderUI({
-  numericInput("LEG", "Lower", value=input$lg)
+  v <- numinput(data()[,2],0.1)
+  numericInput("LEG", "Lower", value=v[1],step = v[2])
 })
 #---- UI Output-----------------------------------------------------------------
 output$UEG <- renderUI({
-  numericInput("UEG", "Upper", value= input$ug)
+  v <- numinput(data()[,2],0.75)
+  numericInput("UEG", "Upper", value=v[1],step = v[2])
 })
 
 #---- UI Output-----------------------------------------------------------------
 output$maxH <- renderUI({
   v <-max(data()[,3]-data()[,2])
   d <- floor(log10(v))
-  numericInput(inputId="maxH", "Maximum", value=round(v,-d))
+  numericInput(inputId="maxH", "Maximum", value=round(v,-d),step=10^(d-1))
 })
 
 #---- UI Output-----------------------------------------------------------------
 output$minH <- renderUI({
     v <-min(data()[,3]-data()[,2])
     d <- floor(log10(v))
-  numericInput(inputId="minH", "Minimum", value=round(v,-d))
+  numericInput(inputId="minH", "Minimum", value=round(v,-d),step=10^(d-1))
 })
  
 #Bayesian figure page
@@ -2349,9 +2436,39 @@ observeEvent(input$show, {
   ))
 })
 
-#-----------------------------------------------------------------------  
+#-------------------------------------------------------------------------------  
+#  Function sets:
+#-------------------------------------------------------------------------------
+# e.freq summarize consecutive frequencies -------------------------------------  
+e.freq <- function(data,c,crit){
+  temp1 <- rle(data)  
+  # function rle produces two data: values: entries,
+  # length: consecutive frequency
+  temp2 <- data.frame(value=temp1$values,length=temp1$length,crit=crit)
+  # temp2 creates data frame
+  temp3 <- temp2[temp2$value==c,]
+  # temp3 selects particular entities. 
+  # if entity is 0, add 0.     
+  if(dim(temp3)[1]==0){
+    temp3 <- rbind(temp3,data.frame(value=c,length=0,crit=crit))
+  }
+  return(temp3)
+}
+
+# SumMSE:  Mean, Median, lci, Uci ----------------------------------------------  
+sumMSE <- function(x,pci){
+  md <- apply(x,1,median,na.rm=TRUE)
+  me <- apply(x,1,mean,na.rm=TRUE)
+  lci <- apply(x,1,function(x) quantile(x, pci,na.rm=TRUE))
+  uci <-  apply(x,1,function(x) quantile(x, 1-pci,na.rm=TRUE)) 
+  out <- data.frame(md,me,lci,uci)
+  return(out)
+}  
+
+
+#-------------------------------------------------------------------------------  
 #  MSE.int: Create initial modeling conditions
-#-----------------------------------------------------------------------  
+#-------------------------------------------------------------------------------  
 MSE.int <-  eventReactive(input$SimRun,{
 #-----------------------------------------------------------------------  
 # Extract S0 from brood data   
@@ -2404,12 +2521,11 @@ Txt_Strategy <- reactive({
   return(txt)
 })
 
-#-----------------------------------------------------------------------
-#  Import Error Data 
+#-------------------------------------------------------------------------------
+# msesim:  Run simulation and output 
 #-------------------------------------------------------------------------------  
 msesim <- eventReactive(input$SimRun,{
-  
-#-----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 #  Import Error Data 
 #-------------------------------------------------------------------------------  
 # Initial Spawners  
@@ -2454,7 +2570,6 @@ msesim <- eventReactive(input$SimRun,{
   } else if(input$strType =='Hybrid'){
     mH <- c(input$minH,input$maxH)
   }
-  
 #-------------------------------------------------------------------------------
 # Select Parameters 
 #-------------------------------------------------------------------------------  
@@ -2502,12 +2617,46 @@ for(k in 1:input$nsim){
   progress$set(value = k/boot.n)
   # Increment the progress bar, and update the detail text.
   progress$inc(1/boot.n, detail = paste("Completed", round(100*k/boot.n,0),"%"))
-  # sim.out produces: 'N','S','H','R','R0'
+  # sim.out produces: 'N','S','H','R' for each 
   }
   return(sim.out)   
 })
 
-output$simplot <- renderPlot({
+#-------------------------------------------------------------------------------
+# MSE.sum: Summarize MSE results as data.frame 
+#-------------------------------------------------------------------------------  
+MSE.sum <- reactive({
+  # Set output as data.frame   
+  out <- data.frame()
+  for(i in 1:input$nsim){
+    dat <- msesim()[[i]][,c('N','S','H')]
+    # Frequency of fishery closure  
+    dat$H0 <- ifelse(dat$H==0,1,0)
+    # Frequency of not meeting escapement goal  
+    dat$EG <- ifelse(dat$S < input$LEG,1,0)
+    # Frequency of Harvest below target      
+    dat$Hmin <- ifelse(dat$H < input$minH,1,0)
+    # Frequency of Run below 10      
+    dat$ND <- ifelse(dat$N > 10,1,0)    
+    f.H0 <- e.freq(dat$H0,1,'H0')
+    # Consecutive fishery below minimum
+    f.Hmin <- e.freq(dat$Hmin,1,'Hm')
+    # Consecutive escapement failure
+    f.EG <- e.freq(dat$EG,1,'EG')  
+    # Consecutive escapement failure
+    f.ND <- e.freq(dat$ND,0,'ND')     
+    # Combine 
+    f <- rbind(f.H0,f.Hmin,f.EG,f.ND)
+    f$rep <- i
+    out <- rbind(out,f)
+  }
+  return(out) 
+})
+
+#-------------------------------------------------------------------------------
+# Plt_mse:  MSE summary plot
+#-------------------------------------------------------------------------------  
+output$Plt_mse <- renderPlot({
   u <- unit()
   mult <- mult(u)
   lyear <- max(data()[,1])
@@ -2518,9 +2667,9 @@ output$simplot <- renderPlot({
   N <- simout[,names(simout)=='N']
   H <- simout[,names(simout)=='H']
   S <- simout[,names(simout)=='S']
-  N.sum <- sumMSE(N,0.05)
-  H.sum <- sumMSE(H,0.05)
-  S.sum <- sumMSE(S,0.05)
+  N.sum <- sumMSE(N,0.025)
+  H.sum <- sumMSE(H,0.025)
+  S.sum <- sumMSE(S,0.025)
   
   par(yaxs='i',bty='l')
   
@@ -2553,8 +2702,10 @@ if(input$pltmse=='Run')
   legend('topright',legend=c('Median','Mean'),lwd=2, lty=c(1,2),box.lty=0)
 })
 
-
-output$simplot2 <- renderPlot({
+#-------------------------------------------------------------------------------
+# Plt_mse_rep:  MSE plot for each simulation 
+#-------------------------------------------------------------------------------  
+output$Plt_mse_rep <- renderPlot({
   u <- unit()
   mult <- mult(u)
   lyear <- max(data()[,1])
@@ -2565,15 +2716,18 @@ output$simplot2 <- renderPlot({
   N <- simout[[j]]$N
   H <- simout[[j]]$H
   S <- simout[[j]]$S
-  R <- simout[[j]]$R
-  R0 <- simout[[j]]$R0
   par(yaxs='i',bty='l')
-  plot(years,N/u,type='l',ylim=c(0,max(N/u,na.rm=TRUE)), main='', xlab = '',ylab='')
+# Run size 
+  plot(data()[,1],data()[,3]/u,type='l',lwd=2,xlim=c(min(data()[,1]),max(years)),ylim=c(0,max(max(N),max(data()[,3]))/u), main='', xlab = '',ylab='')
+  lines(years,N/u)
+# Harvest
+  lines (data()[,1],(data()[,3]-data()[,2])/u,type='l',lwd=2, col=2)
   lines(years,H/u,col=2)
-  lines(years,S/u, col=3,lwd=2)
+# Escapement 
+  lines (data()[,1],(data()[,2])/u,type='l',lwd=2, col=3)
+  lines(years,S/u, col=3,lwd=1)
   polygon(c(lyear-1,max(years)+2,max(years)+2,lyear-1),c(input$LEG/u,input$LEG/u,input$UEG/u,input$UEG/u),col=tcol(5,80),border=NA)
   abline(h=input$minH/u, col=2,lwd=2)
-#    polygon(c(-2,nyrs+2,nyrs+2,-2),c(input$minH/u,input$minH/u,input$maxH/u,input$maxH/u),col=tcol(2,60),border=NA)
   title("MSE Simulation", xlab="Year", ylab=paste('Run / Escapement/Harvest',mult))
   legend('topright',legend=c('Run','Escapement','Harvest'),col = c(1,3,2),lwd=c(1,2,1), box.lty=0)
 })
@@ -2584,58 +2738,16 @@ output$sim.lnalphai <- renderPlot({
   }
   })
 
-e.freq <- function(data,c,crit){
-    temp1 <- rle(data)  
-    # function rle produces two data: values: entries,
-    # length: consecutive frequency
-    temp2 <- data.frame(value=temp1$values,length=temp1$length,crit=crit)
-    # temp2 creates data frame
-    temp3 <- temp2[temp2$value==c,]
-    # temp3 selects particular entities. 
-# if entity is 0, add 0.     
-    if(dim(temp3)[1]==0){
-      temp3 <- rbind(temp3,data.frame(value=c,length=0,crit=crit))
-    }
-    return(temp3)
-  }
-sumMSE <- function(x,pci){
-  md <- apply(x,1,median)
-  me <- apply(x,1,mean)
-  lci <- apply(x,1,function(x) quantile(x, pci))
-  uci <-  apply(x,1,function(x) quantile(x, 1-pci)) 
-  out <- data.frame(md,me,lci,uci)
-  return(out)
-}  
 
-MSE.sum <- reactive({
-  out <- data.frame()
-  for(i in 1:input$nsim){
-  dat <- msesim()[[i]][,c('N','S','H')]
-# Frequency of fishery closure  
-  dat$H0 <- ifelse(dat$H==0,1,0)
-# Frequency of not meeting escapement goal  
-  dat$EG <- ifelse(dat$S < input$LEG,1,0)
-  dat$Hmin <- ifelse(dat$H < input$minH,1,0)
-  f.H0 <- e.freq(dat$H0,1,'H0')
-  # Consecutive fishery below minimum
-  f.Hmin <- e.freq(dat$Hmin,1,'Hm')
-  # Consecutive escapement failure
-  f.EG <- e.freq(dat$EG,1,'EG')  
-# Combine 
-  f <- rbind(f.H0,f.Hmin,f.EG)
-  f$rep <- i
-  out <- rbind(out,f)
-  }
-  return(out) 
-})
-output$Tbl_mse <- renderDataTable({aggregate(length~rep+crit,FUN=sum, data=MSE.sum())})  
+#output$Tbl_mse <- renderDataTable({aggregate(length~rep+crit,FUN=sum, data=MSE.sum())})  
+#output$Tbl_mse <- renderDataTable({MSE.sum()}) 
 
-output$sims.out <- renderPrint({
-  fail.sum <- aggregate(length~rep+crit,FUN=sum, data=MSE.sum())
-  fail.sum.w <- dcast(fail.sum,rep~crit)
-  fail.sum.w[is.na(fail.sum.w)]<- 0
-  return(summary(fail.sum.w[,-1]))
- })
+#output$sims.out <- renderPrint({
+#  fail.sum <- aggregate(length~rep+crit,FUN=sum, data=MSE.sum())
+#  fail.sum.w <- dcast(fail.sum,rep~crit)
+#  fail.sum.w[is.na(fail.sum.w)]<- 0
+#  return(summary(fail.sum.w[,-1]))
+# })
 
 #-------------------------------------------------------------------------------
 #  Estimate frequencies of 
@@ -2645,90 +2757,150 @@ output$sims.out2 <- renderText({
   fail.Esc <- dim(dat[which(dat$crit=='EG' & dat$length>=input$conLEsc),])[1]/input$nsim
   fail.Hm <- dim(dat[which(dat$crit=='Hm' & dat$length>=input$conminH),])[1]/input$nsim
   fail.H0 <- dim(dat[which(dat$crit=='H0' & dat$length>=input$con0H),])[1]/input$nsim
+  fail.Run <- dim(dat[which(dat$crit=='ND' & dat$length>0),])[1]/input$nsim
   head <- paste('During',input$simy,'years')
-  
+  t.ND <- paste('Run Extinct',round(100*fail.Run,0),'%')
   t.H0 <- paste('Complete fishery closure more than',input$con0H,'consecutive years',round(100*fail.H0,0),'%')
   t.Hmin <- paste('Below minimum harvest more than',input$conminH,'consequtive years',round(100*fail.Hm,0),'%')
   t.EG <- paste('Below escapement goal more than',input$conLEsc,'consequtive years',round(100*fail.Esc,0),'%')
+  out <- paste(head, t.ND,t.H0,t.Hmin,t.EG,sep='\n')
+  return(out)
+})
+
+output$sims.out.rep <- renderText({
+  j <- as.numeric(input$sim.rep)
+  dat<- MSE.sum()
+  dat.j <- dat[which(dat$rep==j),]
+  fail.Esc.max <- max(dat.j[which(dat.j$crit=='EG'),'length'])  
+  fail.Esc <- dim(dat.j[which(dat.j$crit=='EG' & dat.j$length>=input$conLEsc),])[1]
+  fail.Esc.max <- max(dat.j[which(dat.j$crit=='EG'),'length'])
+  fail.Hm <- dim(dat.j[which(dat.j$crit=='Hm' & dat.j$length>=input$conminH),])[1]
+  fail.Hm.max <- max(dat.j[which(dat.j$crit=='Hm'),'length'])
+  fail.H0 <- dim(dat.j[which(dat.j$crit=='H0' & dat.j$length>=input$con0H),])[1]
+  fail.H0.max <- max(dat.j[which(dat.j$crit=='H0'),'length'])
+  
+  head <- paste('During',input$simy,'years','frequency of')
+  t.H0 <- paste('Complete fishery closure more than',input$con0H,'consecutive years',fail.H0,'maximum years',fail.H0.max)
+  t.Hmin <- paste('Below minimum harvest more than',input$conminH,'consequtive years',fail.Hm,'maximum years',fail.Hm.max)
+  t.EG <- paste('Below escapement goal more than',input$conLEsc,'consequtive years',fail.Esc,'maximum years',fail.Esc.max)
+  
   out <- paste(head, t.H0,t.Hmin, t.EG,sep='\n')
   return(out)
   
 })
 
+# downloadData ---- Results download -------------------------------------------
+output$simdownload <- downloadHandler(
+  filename = function() {
+    paste0('MSEdata_', model.name(),'_', Sys.Date(),'.csv')
+  },
+  content = function(file) {
+    write.csv(as.data.frame(t(do.call("cbind", msesim()))), file,row.names = FALSE)
+  }
+)
+
 output$Txt_sum.mse <- renderPrint({
-    simout <- do.call("cbind", msesim())
-    x <- simout[,c('N','S','H')]
-    min <- sapply(x,min, na.rm=TRUE)
-    max <- sapply(x,max, na.rm=TRUE)
-    mean <- sapply(x,mean, na.rm=TRUE)
-    median <- sapply(x,median, na.rm=TRUE)
-    sd <- sapply(x,sd,na.rm=TRUE)
-    cv  <- sd/mean
-    out <- data.frame(round(min,0),round(mean,0),round(median,0),round(sd,0),round(cv,3),
+  # Spread out list data 
+  simout <- do.call("cbind", msesim())
+  # convert N,S,H to vector  
+   N <- c(as.matrix(simout[,names(simout)=='N']))
+   H <- c(as.matrix(simout[,names(simout)=='H']))
+   S <- c(as.matrix(simout[,names(simout)=='S']))
+  # x combine to a data.frame 
+   x <- data.frame(N,S,H)
+   min <- sapply(x,min,na.rm=TRUE)
+   max <- sapply(x,max,na.rm=TRUE) 
+   mean <- sapply(x,mean,na.rm=TRUE)
+   median <- sapply(x,median,na.rm=TRUE)
+   sd <- sapply(x,sd,na.rm=TRUE)
+   cv  <- sd/mean
+   out <- data.frame(round(min,0),round(mean,0),round(median,0),round(sd,0),round(cv,3),
                       round(max,0))
-    names(out) <- c('Min','Mean','Median','SD','CV','Max')
-    row.names(out) <- c('Run','Escapement','Harvest')
-    return(out)
+   names(out) <- c('Min','Mean','Median','SD','CV','Max')
+   row.names(out) <- c('Run','Escapement','Harvest')
+   return(out)
   })
 
 output$Plt_sum.mse <- renderPlot({
+  # Spread out list data 
+  simout <- do.call("cbind", msesim())
+  # convert N,S,H to vector  
+  N <- c(as.matrix(simout[,names(simout)=='N']))
+  H <- c(as.matrix(simout[,names(simout)=='H']))
+  S <- c(as.matrix(simout[,names(simout)=='S']))
+  # x combine to a data.frame 
+  x <- data.frame(N,S,H)
+  boxplot(x,horizontal = TRUE, outline=FALSE,names = c('Harvest','Escapement','Run'))
+})
+
+output$Plt_rep.mse <- renderPlot({
   j <- as.numeric(input$sim.rep)
-  x <- msesim()[[j]][,c('N','S','H')]
-  boxplot(x,horizontal = TRUE, names = c('Harvest','Escapement','Run'))
+  x <- msesim()[[j]][,c('H','S','N')]
+  boxplot(x,horizontal = TRUE, outline=FALSE,names = c('Harvest','Escapement','Run'))
 })
 
 output$Txt_HE_mse <- renderText({
-  j <- as.numeric(input$sim.rep)
-  dat <- msesim()[[j]][,c('N','S','H')]
+# Calculate the number of years by each rep 
+  dat.sum <- aggregate(length~rep+crit,FUN=sum, data=MSE.sum())
+#  nyrs <- input$simy: number of simulation years
+  H0 <- dat.sum[dat.sum$crit =='H0','length']
+  Hm <- dat.sum[dat.sum$crit =='Hm','length']
+  EG <- dat.sum[dat.sum$crit =='EG','length']  
   # Frequency of fishery closure  
-  dat$H0 <- ifelse(dat$H==0,1,0)
-  # Frequency of below escapement goal  
-  dat$EG <- ifelse(dat$S < input$LEG,1,0)
-  dat$H.min <- ifelse(dat$H < input$minH,1,0)
-  t.H0 <- paste('Complete fishery closure:',round(100*mean(dat$H0),0),'%')
-  t.Hmin <- paste('Below minimum harvest target:',round(100*mean(dat$Hmin),0),'%')
-  t.EG <- paste('Meeting escapement goal:',round(100*mean(dat$EG),0),'%')
+  t.H0 <- paste('Complete fishery closure:',round(100*mean(H0)/input$simy,0),'%',
+                'Min',round(100*min(H0)/input$simy,0),'%','-','Max',round(100*max(H0)/input$simy,0),'%')
+  t.Hmin <- paste('Below minimum harvest target:',round(100*mean(Hm)/input$simy,0),'%',
+                  'Min',round(100*min(Hm)/input$simy,0),'%','-','Max',round(100*max(Hm)/input$simy,0),'%')
+  t.EG <- paste('Meeting escapement goal:',round(100*mean(EG)/input$simy,0),'%',
+                'Min',round(100*min(EG)/input$simy,0),'%','-','Max',round(100*max(EG)/input$simy,0),'%')
   out <- paste(t.H0,t.Hmin, t.EG,sep='\n')
   return(out)
 })
 
+output$Txt_rep.mse <- renderPrint({
+  j <- as.numeric(input$sim.rep)
+  x <- msesim()[[j]][,c('N','S','H')]
+  min <- sapply(x,min, na.rm=TRUE)
+  max <- sapply(x,max, na.rm=TRUE)
+  mean <- sapply(x,mean, na.rm=TRUE)
+  median <- sapply(x,median, na.rm=TRUE)
+  sd <- sapply(x,sd,na.rm=TRUE)
+  cv  <- sd/mean
+  out <- data.frame(round(min,0),round(mean,0),round(median,0),round(sd,0),round(cv,3),
+                    round(max,0))
+  names(out) <- c('Min','Mean','Median','SD','CV','Max')
+  row.names(out) <- c('Run','Escapement','Harvest')
+  return(out)
+})
 
 output$Plt_freq_mse <- renderPlot({
   par(mfrow=c(1,3))
-  dat <- MSE.out()$dat[,c('H0','Hmin','EG')]
-  # Consecutive fishery closure 
-    f.H0 <- e.freq(dat$H0,1)
-  # Consecutive fishery below minimum
-    f.Hmin <- e.freq(dat$Hmin,1)
-  # Consecutive escapement failure
-    f.EG <- e.freq(dat$EG,1)
-  if(length(f.H0)>0){
-    barplot(table(f.H0),main='Frequency of consecutive fishery closure',xlab='Years')
-  }  
-  # Consecutive fishery closure 
-    if(length(f.Hmin)>0){
-      barplot(table(f.Hmin),main='Frequency of consecutive fishery below minimum',xlab='Years')
-    }
-    if(length(f.EG)>0){
-      barplot(table(f.EG),main='Frequency of consecutive below EG',xlab='Years')
-    }
+  dat <- MSE.sum()
+  barplot(table(dat[dat$crit=='H0','length']),main='Frequency of consecutive fishery closure',xlab='Years')
+  barplot(table(dat[dat$crit=='Hm','length']),main='Frequency of consecutive harvest below minimum',xlab='Years')
+  barplot(table(dat[dat$crit=='EG','length']),main='Frequency of consecutive escapenent below lower bound',xlab='Years')
 })
 
-#-------------------------------------------------------------------------------
+
+#===============================================================================
 # Reporting Section 
-#-------------------------------------------------------------------------------
+#===============================================================================
 # Create and download report 
 output$downloadReport <- downloadHandler(
   filename = paste0('SR_Report_',model.name(),'_',Sys.Date(),'.docx'),
   content = function(file) {
-    src <- normalizePath('report.Rmd')
+    tempReport <- file.path(tempdir(), "report_officedown.Rmd")
+    template <- file.path(tempdir(), "template.docx")
+    file.copy(c('report_officedown.Rmd','template.docx'), c(tempReport,template),overwrite = TRUE) # SEE HERE
 # temporarily switch to the temp dir, in case you do not have write
 # permission to the current working directory
-    owd <- setwd(tempdir())
-    on.exit(setwd(owd))
-    file.copy(src,'report.Rmd', overwrite = TRUE)
+#    src <- normalizePath('report.Rmd')
+#    owd <- setwd(tempdir())
+#    on.exit(setwd(owd))
+#    file.copy(src, c('report.Rmd','template.docx'), overwrite = TRUE) # SEE HERE
     params <- list(
-      Tbl_sum = sumbayes()
+      Tbl_sum = sumbayes(),
+      srplot = srplot()
       )
     progress <- Progress$new(session, min=1, max=15)
     on.exit(progress$close())
@@ -2736,11 +2908,11 @@ output$downloadReport <- downloadHandler(
                  detail = 'This may take a while...')
     for (i in 1:150) {progress$set(value = i)}
     
-    library(rmarkdown)
-    out <- render('report.Rmd',params = params)
-    output_file=file.rename(out, file)
-  }
-)
+    rmarkdown::render(tempReport, output_file = file,
+                      params = params
+                      ,envir = new.env(), intermediates_dir = tempdir()
+  )
+  }) # End ownloadReport
 
 })# End of Server 
 

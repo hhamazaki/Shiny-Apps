@@ -141,7 +141,7 @@ ProfileServer <- function(id,SR.pred,crit,u){
         BEG.st <- EG.st()$S.Range.st
         BEG <- EG()$S.Range
         percent <- c(90,80,70,input$p.min)
-        apercent <- c(90,90,90,input$p.t)
+        apercent <- input$p.t
         lg <- c(BEG.st[,1],BEG[1])
         ug <- c(BEG.st[,2],BEG[2])
         

@@ -24,7 +24,7 @@ age.out <- function(agedata){
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #  1.1  make.age:   Read run data and create age data 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-make.age <- function(agedata,min.age,max.age,combine=FALSE){
+make.age <- function(agedata,min.age,max.age,combine=TRUE){
   eage <- names(agedata)[substr(names(agedata),1,1) =='a']
   rage <- names(agedata)[substr(names(agedata),1,1) =='A']
   if(length(eage)>0){
@@ -36,13 +36,15 @@ make.age <- function(agedata,min.age,max.age,combine=FALSE){
   } else if(length(rage)>0){
     ac <- data.frame(t(agedata[rage]))
     ac$age <- round(as.numeric(substr(rownames(ac),2,3)))
-  }
-# Combine   
-  if(combine == FALSE){ 
-    ac <- ac[which(ac$age>=min.age & ac$age<=max.age),]
-  } else if(combine == TRUE) {
+   }
+# Combine of eliminate age   
+  if(isTRUE(combine)){ 
     ac$age <- with(ac, ifelse(age<min.age,min.age,ifelse(age >max.age,max.age,age)))
-  }
+    
+   } else {
+    ac <- ac[which(ac$age>=min.age & ac$age<=max.age),]
+  } 
+    
   # combine age 
   t.ac <- aggregate(.~age,sum,data=ac[,names(ac) != 'eage'])
   age <- t.ac$age
@@ -57,7 +59,7 @@ make.age <- function(agedata,min.age,max.age,combine=FALSE){
 make.brood <- function(data,fage){
   # fage is the first return age
   fage <- as.numeric(fage)
-  # nage is the number of reutn ages 
+  # nage is the number of return ages 
   # Specifying that first age starts from 4th column and the last column is the 
   # last age, number of ages are the number of columns from 4th col to the last col
   nages <- dim(data)[2]-3
@@ -333,7 +335,7 @@ SR.pred.sim <-function(SRpar,D,max.s,srmodel,add){
   out$R.c <- mc.R.c
   out$R.p <- mc.R.p
   out$Y <- mc.Y
-  out$Yc <- mc.Y.c
+  out$Y.c <- mc.Y.c
   out$Y.p <- mc.Y.p
   return(out)
 }
@@ -501,7 +503,7 @@ mult.den.plt <- function(dat.a,dat.m,main.tx,xlab.tx,leg.tx){
 #-------------------------------------------------------------------------------    
 profile <- function(S, M.rep, mp,tp) {
   #	S: Spawner 
-  #	M.rep: Yield, Run, simulaitn matrix
+  #	M.rep: Yield, Run, simulation matrix
   # M.rep: nrow:  number of simulation replicated 
   # M.rep: ncol:  number of S  nocl = length(S)
   # mp: Target criteria: mp < 1, Percentage of max, mp > 1, specific target 
@@ -514,9 +516,9 @@ profile <- function(S, M.rep, mp,tp) {
   # For each simulation, assign 1 if value of M.rep is > minimum % M.rep
   # Assign 0  0 if not
   if(mp > 1){
-    for(j in 1:nrows){ temp[j,] <- ifelse(M.rep[j,] > mp,1,0) } 
+    for(j in 1:nrows){temp[j,] <- ifelse(M.rep[j,] > mp,1,0) } 
   } else {
-    for(j in 1:nrows){temp[j,] <- ifelse(M.rep[j,] > mp*max(M.rep[j,]),1,0)}
+    for(j in 1:nrows){temp[j,] <- ifelse(M.rep[j,] > mp*max(M.rep[j,],na.rm=TRUE),1,0)}
   }
   # Mean of temp matrix is a  profile probability  
   M.Rep.prof <- colMeans(temp)
@@ -747,7 +749,7 @@ MSE.sim2 <- function(srmodel,lnalpha.i,beta,S0,D,e.Rec,e.p,e.pred,e.imp,LEG,UEG,
 # Fishery target is max harvest rate of surplus, or max harvest capacity    
       min(input$maxH,(N.pred-FT)*input$maxHr))
 # Actual Harvest: Harvest will not exceed N
-    H[y] <- min(H.target*e.imp[y]/N.pred, 0.99)*N[y]
+    H[y] <- min(H.target*e.imp[y]/N.pred, 0.9)*N[y]
     S[y] <- N[y] - H[y]
     # Escapement goal achievement 
     EG[y] <- ifelse(S[y]>input$LEG,1,0)
@@ -1000,8 +1002,7 @@ stars<- function(y=c(rnorm(50), rnorm(50,2,1)), L=20, p=0.05, h=1,  AR1red="none
     # we check for cusum values above zero, which would indicate a failed
     # regime change; otherwise, we have a positive shift
     if (length(which(cs > 0) > 0)) cs = 0 else  cs = cs[LL]
-    cs
-    
+    return(cs)
   }    
   
   #  -------------------------------------------------------------------------
@@ -1085,12 +1086,12 @@ stars<- function(y=c(rnorm(50), rnorm(50,2,1)), L=20, p=0.05, h=1,  AR1red="none
   #  Calculation of new regime sample means and associated pvalues of shifts)
   if(R[length(R)] != 0) R[length(R)]<- 0
   cps<-which(abs(R)>0)
-  
+  lcps <- max(length(cps),1)
   rID<-rep(1, length(x))
-  rLabel<-seq(2, length(cps)+1,1)
-  Rmean<-rep(0, length(cps)+1)
+  rLabel<-seq(2,lcps+1,1)
+  Rmean<-rep(0, lcps+1)
   
-  for(j in 1:length(cps)) rID[cps[j]:N]<-rLabel[j]
+  for(j in 1:lcps) rID[cps[j]:N]<-rLabel[j]
   for(j in 1:length(Rmean)) Rmean[j]<- hWeightedAverage(x[rID==j], h)
   # for(j in 1:length(Rmean)) Rmean[j]<- mean(x[rID==j])
   xNames= names(x)
@@ -1111,9 +1112,9 @@ stars<- function(y=c(rnorm(50), rnorm(50,2,1)), L=20, p=0.05, h=1,  AR1red="none
   colnames(starsResult) = c("ts", "AR1.cor", "rsi", "mean"); rownames(starsResult) = ages
   
   # Estimate pValues of shifts on either white-noise filtered series, or by using the AR1 correction parameter
-  pVal = rep(0, length(cps))
+  pVal = rep(0, lcps)
   
-  for(j in 1:length(cps)) {
+  for(j in 1:lcps) {
     
     rs1 = x[rID1==j]
     rs2 = x[rID1==(j+1)]

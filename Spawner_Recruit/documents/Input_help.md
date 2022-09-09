@@ -13,11 +13,17 @@ The application accepts 3 data types
 
 # Run data type 
 
-Run data type consists of **Calendar Year**, Spawner (Escapement) size, Run size, and run age proportion from the youngest to the oldest.   
+Run data type consists of **Calendar Year**, Spawner (Escapement) size, Run size, and run or run proportion by age.  Age notation should be either run age, starting "A" (A3),or European scale age fw age.sw age starting from "a" (a1.1).  Run age is freshwater + saltwater scale age +1.  For example, run age of scale age 1.1 = 3. 
+
+When input data are European scale age, the app convert them to run age.  
+User also have an option of set minimum and maximum age and combine or drop minor ages.  
+* Combine option: Combine minor age to next age (e.g. combine age 3 and age 4)  
+* Drop option: Drop minor age and recalculate proportion (e.g. drop age 3)  
+
 
 **Run input table example** 
 
-| Year | |  Spawner| | Run    | | Age 3  | |  Age 4 | | Age 5  | | Age 6  | 
+| Year | |  Spawner| | Run    | | A3  | |  A4 | | A5  | | A6  | 
 |-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|
 |_____|_|_______|_|______|_|_____|_|_____|_|_____|_|_____|
 |1966  | |1000   | |4500  | | 0.01 | | 0.45 | | 0.43 | |  0.06  |
@@ -29,8 +35,25 @@ Run data type consists of **Calendar Year**, Spawner (Escapement) size, Run size
 |1972  | |900    | |2000  | | 0.01 | |	0.42 | | 0.52 | |  0.06  |
 |_____|_|_______|_|______|_|_____|_|_____|_|_____|_|_____|
   
+or 
+
+
+| Year | |  Spawner| | Run    | | a1.1  | |  a1.2 | | a1.3  | | a1.4  | 
+|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|
+|_____|_|_______|_|______|_|_____|_|_____|_|_____|_|_____|
+|1966  | |1000   | |4500  | | 0.01 | | 0.45 | | 0.43 | |  0.06  |
+|1967  | |1200   | |6000  | | 0.03 | | 0.48 | | 0.42 | |  0.07  |
+|1968  | |2500   | |8250  | | 0.01 | | 0.42 | | 0.52 | |  0.06  |
+|1969  | |3500   | |12500 | | 0.05 | | 0.56 | | 0.38 | |  0.01  |
+|1970  | |2000   | |4000  | | 0.01 | |	0.42 | | 0.52 | |	 0.06  |
+|1971  | |1600   | |3000  | | 0.01 | |	0.42 | | 0.52 | |  0.06  |
+|1972  | |900    | |2000  | | 0.01 | |	0.42 | | 0.52 | |  0.06  |
+|_____|_|_______|_|______|_|_____|_|_____|_|_____|_|_____|
+
 ---
+
 From the input table, the app creates a brood table starting the first calendar year's escapement and brood year recruitment.
+
 
 | b.Year | |Spawner| |b.Age3 | |b.Age4 | |b.Age5 | |b.Age6 | |Recruit| 
 |-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|
@@ -54,7 +77,7 @@ From the input table, the app creates a brood table starting the first calendar 
 **Special case**  
 The input data calculates brood year recruit several ages before the calendar year.  In the above example, a complete brood year starts from **1966**, but brood year recruit starting from **1963**.  When you **DO** have escapement data starting 1963, you can hack the table by inserting  **Real** escapement and **Dummy** run and age data. 
 
-| Year | |  Spawner| | Run    | | Age 3  | |  Age 4 | | Age 5  | | Age 6  | 
+| Year | |  Spawner| | Run    | | A3  | |  A4 | | A5  | | A6  | 
 |-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|---:|-------:|
 |_____|_|_______|_|______|_|_____|_|_____|_|_____|_|_____|
 | 1963 | | 2500  || 3500 | | 0.2  | | 0.2  | | 0.3  | |  0.3   |
