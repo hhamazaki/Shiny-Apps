@@ -16,9 +16,16 @@ The application accepts 3 data types
 Run data type consists of **Calendar Year**, Spawner (Escapement) size, Run size, and run or run proportion by age.  Age notation should be either run age, starting "A" (A3),or European scale age fw age.sw age starting from "a" (a1.1).  Run age is freshwater + saltwater scale age +1.  For example, run age of scale age 1.1 = 3. 
 
 When input data are European scale age, the app convert them to run age.  
-User also have an option of set minimum and maximum age and combine or drop minor ages.  
-* Combine option: Combine minor age to next age (e.g. combine age 3 and age 4)  
-* Drop option: Drop minor age and recalculate proportion (e.g. drop age 3)  
+Default is making brood table based on all agegs.  User also have an option of set minimum and maximum age using **Select Run Age** slider.
+
+* Pool option (check **Pool Ages**) : Pool  minor age to next age (e.g. combine age 3 and age 4)  
+* Drop option (uncheck **Pool Ages**): Drop minor age and recalculate proportion (e.g. drop age 3)  
+
+For instance when run age proportion of ages 3,4,5,6,7, and 8 are 0.01,0.42,0.52,0.03,0.01, and 0.01. 
+When you want to limit ages to 4,5, and 6
+
+* Pool Age option will combine the proportion of age 3 with 4, and 7 and 8 with 6.  The resulting ages 4,5,6 proportion would be 0.43,0.52,0.05.  
+* Drop option will be drop ages 3,7, 8 and re-scale run proportion as: 0.42/(0.97 = 0.42+0.62+0.03), 0.52/0.97, and 0.03/0.97.  The reusling ages 4,5,6 proportion would be 0.43,0.54,0.03.
 
 
 **Run input table example** 

@@ -48,7 +48,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
     titer <- nburn+niter
     nthin <- input$n.thin
     nchain <- input$n.chain
-    seed <- 123
+#    seed <- 123
 #    seed <- sample(1:1000,1)
     #  JAGS model selection 
     jagmodel <- Bayesmodel()$jagmodel
@@ -75,7 +75,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
 #---------------------------------------------------------------
   jag.model.CR <- function(){
     for(y in 1:nyrs){
-      # log nornmal Likelihood 
+      # log normal Likelihood 
       R[y] ~ dlnorm(mu[y],Tau)
 # v[i] is used for Kalman filter 
       fit[y] <- log(S[y]) + lnalpha - beta * S[y]/(10^d) 
@@ -91,7 +91,7 @@ BayesInputServer <- function(id,Bayesdata,Bayesmodel){
       cw[y] <- cw[y-1] + w[y] #+ v[y]
       mu[y] <- fit[y] + kf*cw[y] + ar1*phi*e[y-1]
     }
-    # log nornmal Likelihood 
+    # log normal Likelihood 
 #    for(y in 1:nyrs){     
 #      R[y] ~ dlnorm(mu[y],Tau)
 #    }  

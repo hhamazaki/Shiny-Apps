@@ -449,9 +449,15 @@ EGS <- reactive({
   return(e.g)
  })
 
+
 #-------------------------------------------------------------------------------
 # Plt_prcnt:  Plot Percentile  
 #-------------------------------------------------------------------------------  
+add_legend <- function(...) {
+  plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n',xlab='',ylab='')
+  legend(...)
+}
+
 Plt_prcnt <- function(){
   mult <- mult(u)
   EG <- EGS()
@@ -460,23 +466,24 @@ Plt_prcnt <- function(){
   } else if( input$Tiers == "Tier 2") { e.g <- EG[2,]     
   } else if(input$Tiers == "Tier 3") { e.g <- EG[3,]       
   }
-  # Graphics    
-  par(yaxs='i',bty='l',las=1,xpd=TRUE,mar=c(4,4,4,8))
+  # Graphics   
+  layout(matrix(1:2, ncol=2), widths=c(3, 0.5))
+  par(yaxs='i',bty='l',las=1,mar=c(4,4,4,4))
   plot(S/u~Yr,data=x,type='l',ylim=c(0,max(x$S,na.rm=TRUE)/u),xlab='',ylab='')
   title("Escapement", xlab="Year",ylab=paste('Escapement',mult(u))) 
   # Add Escapement Goal range  
   polygon(with(x,c(min(Yr),max(Yr),max(Yr),min(Yr))),c(e.g[1]/u,e.g[1]/u,e.g[2]/u,e.g[2]/u),col=tcol(2,50),border=NA)
   # Alternative: 
-  abline(h=EG[1,]/u,col = ifelse(input$Tiers == "Tier 1",2,3), lty=2,lwd=ifelse(input$Tiers == "Tier 1",2,1),xpd=FALSE)
-  abline(h=EG[2,]/u,col = ifelse(input$Tiers == "Tier 2",2,4), lty=2,lwd=ifelse(input$Tiers == "Tier 2",2,1),xpd=FALSE)
-  abline(h=EG[3,]/u,col = ifelse(input$Tiers == "Tier 3",2,5), lty=2,lwd=ifelse(input$Tiers == "Tier 3",2,1),xpd=FALSE)
+  abline(h=EG[1,]/u,col = ifelse(input$Tiers == "Tier 1",2,3), lty=2,lwd=ifelse(input$Tiers == "Tier 1",2,1))
+  abline(h=EG[2,]/u,col = ifelse(input$Tiers == "Tier 2",2,4), lty=2,lwd=ifelse(input$Tiers == "Tier 2",2,1))
+  abline(h=EG[3,]/u,col = ifelse(input$Tiers == "Tier 3",2,5), lty=2,lwd=ifelse(input$Tiers == "Tier 3",2,1))
   # EG      
 #  abline(h=e.g/u,col=2,lwd=2,xpd=FALSE)
   lines(S/u~Yr,data=x)
   txt <- c('Tier 1','Tier 2','Tier 3')
   cols <- c(ifelse(input$Tiers == "Tier 1",2,3),ifelse(input$Tiers == "Tier 2",2,4),ifelse(input$Tiers == "Tier 3",2,5))
   lwds <- c(ifelse(input$Tiers == "Tier 1",2,1),ifelse(input$Tiers == "Tier 2",2,1),ifelse(input$Tiers == "Tier 3",2,1))
-  legend('topright',legend=txt, inset=c(-0.2,0), col=cols, lwd=lwds,lty=2, box.lty=0)  
+  add_legend('topright',legend=txt, col=cols, lwd=lwds,lty=2, box.lty=0,xpd=TRUE)  
 }
 
 #-------------------------------------------------------------------------------

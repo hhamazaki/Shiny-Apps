@@ -254,7 +254,10 @@ conditionalPanel(condition="input.dataType == 'Run'",
      tabPanel("Help",
         withMathJax(includeMarkdown("documents/JAGS_help.md"))
             ), # End tabPanel: Help
-    id = "Panel"
+      tabPanel("SR Help",
+         withMathJax(includeMarkdown("documents/SR_help.md"))
+        ), # End tabPanel: Help
+id = "Panel"
            )#End tabsetPanel
         )#End mainPanel
       ),#End SR Model tabPanel
@@ -614,7 +617,7 @@ p(strong("Missed escapement passage estimation:",
 server<-shinyServer(function(input, output, session){
 #-------------------------------------------------------------------------------
 # ggplot theme set 
-theme_set(theme_simple()) 
+#theme_set(theme_simple()) 
 #-------------------------------------------------------------------------------
   output$note <- reactive({
    HTML(
@@ -734,7 +737,7 @@ data <- reactive({
     })
   
   output$agecomb <- renderUI({
-    if(length(input$rage[1])>0){
+    if(input$dataType== "Run" & length(input$rage[1])>0){
       #  Slider input UI 
       checkboxInput("combage", label = "Pool Ages", value = TRUE)
         } 

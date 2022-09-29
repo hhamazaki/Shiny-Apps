@@ -1,7 +1,8 @@
 ## Yield and Recruit Analyses
-Yield and Recruit Analyses functions the same way as profile analyses. Both analyses produces  probabilities of producing a yield/recruit that is greater than **minimum target** at given spawner size. The yield and recruit analyses produces **two** probabilities: mean and annual yield/recruit. The mean profile is a probability of producing a **mean** yield/recruit **over years** that is greater than **minimum target** at given spawner size. The annual profile is a probability of producing a yield/recruit **at each year** that is greater than **minimum target** at given spawner size. 
+Yield and Recruit Analyses is designed to estimate a range of spawner that is expected to produce defined yield and recruit. Both analyses produces  probabilities of producing a yield/recruit that is greater than **minimum target** at given spawner size. The yield and recruit analyses produces **two** probabilities: median-mean and annual yield/recruit. The median-mean profile is a probability of producing a **long-term median-mean** yield/recruit that is greater than **minimum target** at given spawner size. The annual profile is a probability of producing a yield/recruit **at each year** that is greater than **minimum target** at given spawner size. In both cases, the profile based escapement goal range is determined by setting a target minimum probability (p) of achieving the goal.
 
-In both cases, the profile based escapement goal range is determined by setting a target minimum probability (p) of achieving the goal.  
+**Note**
+At any given spawner size probability of attaining annual target is **lower** than that attaining long-term median-mean target. Put it simply, definition of median-mean is center of distribution and 50% of distribution is below median-mean. Hence, when long-term mean-median target is 10000 over 10 years, you miss the target 5 out of 10 years      
 
 
 ### Yield Profile 
