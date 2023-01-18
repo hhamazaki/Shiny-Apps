@@ -1,0 +1,14 @@
+name: test1
+title: test1
+username:
+account: hamachan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5323309
+bundleId: 5370067
+url: https://hamachan.shinyapps.io/test1/
+when: 1639464652.77582
+lastSyncTime: 1639464652.77582
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app.txt
