@@ -1,9 +1,7 @@
 #initialize
 library(shiny)
 library(shinythemes)
-library(datasets)# used to read markdown file
-library(rmarkdown)     # used to get rmarkdown file
-library(markdown)     
+library(datasets)
 library(coda)
 library(R2jags)
 library(openxlsx)
@@ -13,19 +11,17 @@ library(openxlsx)
 ui<-fluidPage(
   navbarPage(
     theme = shinytheme("cerulean"),  
-    title = div(
-      img(src="Picture2.png",height=40, width=40)
-      ,  "Missing passage estimation"),
+    "Missing passage estimation",
 #-----------------------------------------------------------------------
 #  Panel 1:  Data Input and Submit 
 #-----------------------------------------------------------------------
   tabPanel("Data Input",
    sidebarPanel(width = 3,
 #---------------------------------------------------    
-#  File Inuput
+#  File Inuput3
 #---------------------------------------------------
 # Input: Select a file ----
-  fileInput("file1", "Upload CSV File",
+  fileInput("file1", "Choose CSV File",
          multiple = TRUE,
           accept = c("text/csv",
                       "text/comma-separated-values,text/plain",
@@ -38,10 +34,15 @@ ui<-fluidPage(
       choices = c(Comma = ",", Tab = "\t"), selected = ","),
     # Horizontal line ----
     tags$hr(),
-#-------------------------------------------------------------------------------    
-# UI:  Limit data 
-#-------------------------------------------------------------------------------
-uiOutput('yrange'),
+p("Bayesian Simulation Setting"),
+numericInput(inputId='n.iter','Simulation Length',value=10000,min=0,step=10000), 
+numericInput(inputId='n.burnin','Burn-in Length',value=1000,min=0,step = 1000),
+numericInput(inputId='n.thin','Thinning',value=10,min=0,step = 1),
+numericInput(inputId='n.chain','Number of Chains',value=1,min=1,step = 1),
+selectInput('Er',"Select Error Structure",choice=list('Normal','Poisson','Negative Binomial'),selected ='Normal'),
+p("Start Bayesian Analyses"),
+numericInput(inputId='n.sigma','Sigma',value=50,min=1,step = 10)
+
    ), # End SidePanel
   # output
   mainPanel(
@@ -49,120 +50,99 @@ uiOutput('yrange'),
       tabPanel("Table",    
                h4("Passage timing data: Date (day-month), counts by year"),
                tableOutput("table")),
-      tabPanel("Help", 
-               includeMarkdown("documents/Input_help.md")
-      )# End tabPanel
+      tabPanel("model",
+               verbatimTextOutput('test')
+          )  # End tabPanel
         )  # End tabsetPanel
       )  # End mainPanel
     ), # End tabpanle
 #-----------------------------------------------------------------------
 #  Panel 2
 #-----------------------------------------------------------------------
-  tabPanel("Run Model",
+  tabPanel("Missed Passage Bayesian Analyses",
     sidebarPanel(width = 3,
       # Horizontal line ----
       p(strong("Run Bayesian model")),
-      p("Simulation Setting"),      
-      fluidRow(
-      column(6,
-             numericInput('n.burnin','Burn-in',value=5000,min=0,step = 1000),
-             numericInput('n.thin','Thinning',value=5,min=0,step = 1)
-      ),  
-      column(6,
-             numericInput('n.iter','Simulation',value=10000,min=0,step=10000), 
-             numericInput('n.chain','Chains',value=3,min=1,step = 1)
-      )
-      ),      
-      selectInput('Er',"Select Error Structure",choice=list('Normal','Poisson','Negative Binomial'),selected ='Normal'),
-      p("Set Error CV"),
-      numericInput(inputId='n.cv','CV',value=0.25,min=0,step = 0.1),
-      checkboxInput("more","More Control"),
-      conditionalPanel(
-        condition = "input.more == true",
-        numericInput(inputId='mina','Minimum Peak Passage',value=10,min=0,step=100), 
-        numericInput(inputId='minmu','Minimum Peak day',value=0,min=0,step = 1),        
-        numericInput(inputId='minb','Minimum Peak Passage days',value=14,min=0,step = 50),
-      ),
       actionButton("Run","Run"),
-      
+      tags$hr(),
+      p(strong("Bayesian Output")),
+      numericInput("CI", "% Credible Interval", value=90,min=0,max=100,step=5),
+      conditionalPanel(condition="input.conditionedPanels == 'Bayesian Model'",       
+                       uiOutput('fpage')
+         ),    
+      conditionalPanel(condition="input.conditionedPanels == 'Daily passage'", 
+                       uiOutput('columns'),
+                       downloadButton("downloadData", "Download")             
+             ),
       conditionalPanel(condition="input.conditionedPanels == 'Trace Plots'", 
-                                                    uiOutput('lpage')            
-            )      
+                      uiOutput('lpage')            
+             )      
             ),  # End sidebarPanel
            mainPanel(tabsetPanel(
              tabPanel("Bayesian Model",
+                      plotOutput(height='500px','pfig2'),
                       p(strong("Model summary")), 
                       verbatimTextOutput('summary')                      
                       ),
-             tabPanel("model",
-                      verbatimTextOutput('test')
-             ),# End tabPanel
-             tabPanel("Model output",
-             ),
+             tabPanel("Annual summary",
+                      tableOutput("ptable")
+                      ),
+             tabPanel("Daily passage",
+                      tableOutput("ytable")
+                      ),
+             tabPanel("Model Parameter", 
+                      tableOutput("partable")
+                      ),
              tabPanel("Trace Plots",
                       plotOutput(height='500px','pfig')
-             ),
-             tabPanel("Help",
-                withMathJax(               
-                  includeMarkdown("documents/JAGS_help.md")
-                )            
-             ),# End tabPanel
-             id = "conditionedPanels"
-                         )#End tabsetPanel
+                      ),
+               id = "conditionedPanels"
+               )#End tabsetPanel
              )#End mainPanel
            ),#End tabPanel
 #-----------------------------------------------------------------------
 #  Panel 3 
 #-----------------------------------------------------------------------
-# navbarMenu("Model Diganoses",
-    tabPanel("Model Output",      
-      sidebarPanel(width = 3,
-      p(strong("Model Output")),
-        numericInput("CI", "% Credible Interval", value=90,min=0,max=100,step=5),
-          conditionalPanel(condition="input.conditionedPanel2 == 'Plot'",       
-                        uiOutput('fpage')
+   navbarMenu("Model Diganoses",
+       tabPanel("Panel 1",      
+         sidebarPanel(width = 3,
+            conditionalPanel(condition="input.conditionedPanel == 'Tab 1'",       
+                             helpText("TAB 1 SELECTED") 
                       ),    
-          conditionalPanel(condition="input.conditionedPanel2 == 'Daily passage'", 
-                        uiOutput('columns'),
-                      ),
-          downloadButton("downloadData", "Download")    
-                ),
-        mainPanel(
-          tabsetPanel(
-            tabPanel("Plot",
-              plotOutput(height='500px','pfig2')
-            ),
-            tabPanel("Annual summary",
-                      tableOutput("ptable")
-              ),
-            tabPanel("Daily passage",
-                    tableOutput("ytable")
-              ),
-            tabPanel("Model Parameter", 
-                    tableOutput("partable")
-              ),
-            id = "conditionedPanel2"
+            conditionalPanel(condition="input.conditionedPanel == 'Tab 2'", 
+                            helpText("TAB 2 SELECTED")
+                      )
+         ),
+         mainPanel(
+             tabsetPanel(
+              tabPanel("Tab 1",
+                     p(strong("To be completed"))
+                   ),
+              tabPanel("Tab 2",
+                  p(strong("To be completed"))
+                    ),
+              id = "conditionedPanel"
                )#End tabsetPanel
              )#End mainPanel
-          )#End tabPanel
-#      tabPanel("Panel 2",
-#            sidebarPanel(width = 3,
-#            p(strong("Extra")
-#              )            
-#                  ), 
-#                mainPanel(
-#                  tabsetPanel(
-#                    tabPanel("Tab 1",
-#                             p(strong("To be completed"))
-#                             ),
-#                  tabPanel("Tab 2",
-#                           p(strong("To be completed"))
-#                           )
-#                          
-#                         )#End tabsetPanel
-#                      )#End mainPanel
-#                   )#End tabPanel
-#  )#End nabVarMenu
+          ),#End tabPanel
+      tabPanel("Panel 2",
+            sidebarPanel(width = 3,
+            p(strong("Extra")
+              )            
+                  ), 
+                mainPanel(
+                  tabsetPanel(
+                    tabPanel("Tab 1",
+                             p(strong("To be completed"))
+                             ),
+                  tabPanel("Tab 2",
+                           p(strong("To be completed"))
+                           )
+                          
+                         )#End tabsetPanel
+                      )#End mainPanel
+                   )#End tabPanel
+   )#End nabVarMenu
   ),#End nabVarPage
 #------------------------------------------------------------------------
 # Citation Discraimer  
@@ -190,8 +170,8 @@ server<-shinyServer(function(input, output, session){
 #-----------------------------------------------------------------------
 #  1.0 Upload File 
 #-----------------------------------------------------------------------  
-# Upload file 
-data.0 <- reactive({
+# Uplaed file 
+data <- reactive({
   # input$file1 will be NULL initially. After the user selects
   # and uploads a file, head of that data file by default,
   # or all rows if selected, will be shown.
@@ -202,38 +182,9 @@ data.0 <- reactive({
   names(df)[1] <- 'Date'
   return(df)
   })  
-# yrange --- UI output to determine data year range ----------------------------
-output$yrange <- renderUI({
-  dates <- as.Date(data.0()$Date,"%d-%b")
-  fyear <- min(dates)       # First brood year 
-  lyear <- max(dates)       # Last brood year
-  #  Slider input UI 
-  dateRangeInput("sryears", "Select date range:",
-                 start = fyear,
-                 end   = lyear,
-                 min    = fyear,
-                 max    = lyear,
-                 format = "dd-M",
-                 separator = " - "
-                 )
-  })
-
-#-------------------------------------------------------------------------------
-#  1.1: Output data  
-#-------------------------------------------------------------------------------
-# Extract years 
-data <- reactive({
-  dat <- data.0()
-  dates <- as.Date(dat$Date,"%d-%b")
-  dat <- dat[which(dates>=input$sryears[1]&dates<=input$sryears[2]), ]
-  return(dat)
-  })
-# output table -----------------------------------------------------------------
-output$table <- renderTable({  data() })
-
-#-------------------------------------------------------------------------------
-#  1.2: Output page range determined by data 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------
+#  1.0: Output page range determined by data 
+#-----------------------------------------------------------------------
 # Extract years 
 years <- reactive({
   dat <- data()
@@ -244,13 +195,11 @@ years <- reactive({
 output$columns = renderUI({
   selectInput('columns2', 'Year', years())
   })
-
 #Bayesian figure page
 output$fpage = renderUI({
   mn <- length(years())%/%4
   numericInput("pf", "page", value=1,min=1,max=mn+1,step=1)
   })
-
 #Bayesian trace-density plot figure page
 output$lpage = renderUI({
   mn <- length(years())%/%2
@@ -258,7 +207,14 @@ output$lpage = renderUI({
 })
 
 #-----------------------------------------------------------------------
-#  1.2: Create Bayes data 
+#  1.1: Data output table 
+#-----------------------------------------------------------------------
+output$table <- renderTable({
+        data()
+    })
+
+#-----------------------------------------------------------------------
+#  1.2: Create Bayese data 
 #-----------------------------------------------------------------------
 Bayesdata <- reactive({
 #  Import data 
@@ -276,7 +232,7 @@ Bayesdata <- reactive({
       }
     }
 # dat is Bayesian data        
-    dat <-list(nyrs=nyrs, ndays=ndays,y=y)
+    dat <-list(nyrs=nyrs, ndays=ndays, y=y)
     return(dat)
   })
 
@@ -290,55 +246,53 @@ inits <- reactive({
   # ndays is the number of days (i.e. number of rows)  
   ndays <- dim(x)[1]
   d <- seq(1,ndays)
-  mu <- rep(0,nyrs) # Mean passage date  
-  a <- rep(0,nyrs)  # Peak passage height
-  b <- rep(0,nyrs)  # Spreadk 
+  sigma <- rep(0,ndays)
+  mu <- rep(0,nyrs)
+  a <- rep(0,nyrs)
+  b <- rep(0,nyrs)
   for (j in 1:nyrs){
     a[j]<-  log(max(x[,j+1],na.rm=TRUE))    
-#    mu[j]<-  sum(d*x[,j+1],na.rm=TRUE)/sum(x[,j+1],na.rm=TRUE)
-    mu[j]<-  which.max(x[,j+1])
-    b[j]<-   sqrt(sum((d-mu[j])^2*(x[,j+1]),na.rm=TRUE)/sum((x[,j+1]),na.rm=TRUE))/mu[j]
+    mu[j]<-  sum(d*x[,j+1],na.rm=TRUE)/sum(x[,j+1],na.rm=TRUE)
+    b[j]<-   1/sqrt(log(sum(x[,j+1],na.rm=TRUE)))
   }
-  # Initial starting data    
+
+# Initial starting data    
   inits<- list(
-    a =a*rnorm(nyrs,1,0.1), 
-    mu = mu*rnorm(nyrs,1,0.1),
-    b = b*rnorm(nyrs,1,0.025)
+  a =(a)*rnorm(nyrs,1,0.25), 
+  mu = mu*rnorm(nyrs,1,0.25),
+  b = b*rnorm(nyrs,1,0.1),
+  a0 = median(a),
+  b0 = median(b),
+  mu0 = median(mu),
+  a0.sigma = sd(a),
+  mu0.sigma = sd(mu),
+  b0.sigma = sd(b)
   )
   return(inits)
-})
+  })
 
 #-----------------------------------------------------------------------
 #  1.4: Create Initial Parameters 
 #-----------------------------------------------------------------------
-#---- UI Output-----------------------------------------------------------------
+
+
 #-----------------------------------------------------------------------
 #  1.3: Create Hyper Parameter priors  
 #-----------------------------------------------------------------------
 hyper <- reactive({
   x <- inits()
-  y <- data()
-#  ym <- apply(y[,-1],1,FUN=median, na.rm=TRUE)
-  ym <- apply(y[,-1],1,FUN=sd, na.rm=TRUE)
-#  ym <- round(ym*input$n.cv)
-  ym <- round(ym)
-  ym[ym<1] <- 1
   hyper <- list(
   a0m = median(x$a),
-  a0tau = 1/var(x$a),
+  a0tau = 2/var(x$a),
   b0m = median(x$b),
-  b0tau = 1/var(x$b),
+  b0tau = 2/var(x$b),
   mu0m = median(x$mu),
-  mu0tau = 1/var(x$mu),
-  sigma0 = ym,
-  mina = (0.9*min(x$a)),
-  minb = (0.9*min(x$b)),
-  minmu = (0.9*min(x$mu))
+  mu0tau = 2/var(x$mu),
+  sigma0 = input$n.sigma
   ) 
   return(hyper)
 })
 
-  
 #========================================================================
 #  JAG Models 
 #========================================================================
@@ -349,58 +303,69 @@ jag.model.n <- function(){
   for(j in 1:nyrs) {
     for(i in 1:ndays){
 #-----------------------------------------------------------------------
-# Observation Error Assumptions 
+# Obervation Error Assumptions 
 #-----------------------------------------------------------------------
-# Normal Error Assumption 
-  y[j,i] ~ dnorm(theta[j,i],tausqd[i])
+      # Normal Error Assumption 
+      y[j,i] ~ dnorm(theta[j,i],tausqd[i])
       
-#-------------------------------------------------------------------------
-# Rum Timing Model Assumptions 
-#------------------------------------------------------------------------=
-# Log-normal run timing
+      # Log-normal Error Assumption 
+      #    y[j,i] ~ dlnorm(log.theta[j,i], tausqd[i])
+      
+      # Poisson Negative-bionomial Error Assumpton 
+      #      y[j,i] ~ dpois(lambda[j,i])
+      #       lambda[j,i] <- theta[j,i]      #  Negative-binomial as 
+      #  lambda[j,i] <- theta[j,i]*v[j,i]      #  Negative-binomial as   
+      #       v[j,i] ~ dgamma(kappa[j], kappa[j])    #  a gamma-Poisson mixture  
+      
+      #-------------------------------------------------------------------------
+      # Rum Timing Model Assumptionss 
+      #------------------------------------------------------------------------=
+      # Log-normal
       theta[j,i] <- exp(a[j])*exp(-0.5*pow(log(i/mu[j])/b[j],2))
+      
+      # Extreme value distribution 
+      #   theta[j,i] <- exp(a[j])*exp(-exp((mu[j]-i)/b[j])+(mu[j]-i)/b[j]+1)
       
     }
   }
   
-# a[] indicates the maximum height (amplitude) of the function a>0
-# mu[] indicates the function peaks when x = mu mu>0 : Peak timing
-# b[] indicates peak width of the function b>0 standard deviation
+  # a[] indicates the maximum height (amplitude) of the function a>0
+  # mu[] indicates the function peaks when x = mu mu>0 : Peak timing
+  # b[] indicates peak width of the function b>0 standard deviation
   
 #-------------------------------------------------------------------------------
 # Priors 
 #-------------------------------------------------------------------------------
   for(j in 1:nyrs) {
-# Normal distribution Positive only 
-  #  All parameters are hierachical 
-    a[j] ~ dnorm(a0,a0.prec)%_%T(mina,)
-    b[j] ~ dnorm(b0,b0.prec)%_%T(minb,)   
-    mu[j] ~ dnorm(mu0,mu0.prec)%_%T(minmu,)
+    # Normal distribution Positive only 
+    #  a: is independent not hierarhical 
+    a[j] ~ dnorm(a0,a0.prec)%_%T(1,)
+    b[j] ~ dnorm(b0,b0.prec)%_%T(0.2,)   
+    mu[j] ~ dnorm(mu0,mu0.prec)%_%T(1,)
     #    kappa[j] ~ dgamma(kappaa, kappab)
   }  
+  # Rule of thumb prior
+  # a log of the highest passage 
+  # b 1/(log(total passage))
+  # m peak passage date. 
   
-# Rule of thumb prior
-# a log of the highest daily passage 
-# b 1/(log(total passage))
-# m peak passage date. 
   a0 ~ dnorm(a0m,a0tau)
   b0 ~ dnorm(b0m,b0tau)
   mu0 ~ dnorm(mu0m,mu0tau)
-  a0.prec <- 1/pow(a0.sigma,2)
+  a0.prec <-1/pow(a0.sigma,2)
   a0.sigma ~ dunif(0,2)  	
-  b0.prec <- 2/pow(b0.sigma,2)
-  b0.sigma ~ dunif(0,0.5)  
-  mu0.prec <- 1/pow(mu0.sigma,2)
-  mu0.sigma ~ dunif(0,2) 
+  b0.prec <-1/pow(b0.sigma,2)
+  b0.sigma ~ dunif(0,2)  
+  mu0.prec <-1/pow(mu0.sigma,2)
+  mu0.sigma ~ dunif(0,10) 
   #  kappaa<- kappamu * kappamu / kappasig2
   #  kappab<- kappamu / kappasig2
   #  kappamu ~ dexp(0.0001)
   #  kappasig2 ~ dexp(0.0001)
   
-## This assumes that variance of each day is independent.     
+  ## This assumes that variance of each year is independent.     
   for(i in 1:ndays) {    
-#    sigmad[i] ~ dnorm(0,0.000001)%_%T(0,)  
-    sigmad[i] ~ dunif(0,sigma0[i])  
+    sigmad[i] ~ dunif(0,sigma0)  
     tausqd[i] <-pow(sigmad[i],-2)
   }		
 }
@@ -448,7 +413,7 @@ jag.model.p <- function(){
     # Normal distribution Positive only 
     #  a: is independent not hierarhical 
     a[j] ~ dnorm(a0,a0.prec)%_%T(1,)
-    b[j] ~ dnorm(b0,b0.prec)%_%T(0.25,)   
+    b[j] ~ dnorm(b0,b0.prec)%_%T(0.2,)   
     mu[j] ~ dnorm(mu0,mu0.prec)%_%T(1,)
     #      kappa[j] ~ dgamma(kappaa, kappab)
   }  
@@ -591,8 +556,7 @@ nthin <- input$n.thin
 nchain <- input$n.chain
 
 parameters <- c('a','b','mu','y') 
-
-initss <- function(){rjag.inits}
+initss <- function(){inits()}
 
 #  JAGS model selection 
 if(input$Er=='Normal'){jagmodel <- jag.model.n}
@@ -600,7 +564,7 @@ if(input$Er=='Poisson'){jagmodel <- jag.model.p}
 if(input$Er=='Negative Binomial'){jagmodel <- jag.model.nb}
 
 
-output <- jags.parallel(data=append(datnew,hyper),inits=initss,parameters.to.save=parameters, model.file= jagmodel,
+output <- jags(data=append(datnew,hyper),inits=initss,parameters.to.save=parameters, model.file= jagmodel,
                n.chains=nchain, n.iter=niter,n.burnin=nburn,n.thin=nthin,DIC=TRUE)
 return(output)
 })
@@ -945,7 +909,7 @@ pg2 <-  min(4*(pg-1)+4,nyrs)
     # plot 95% CI lines    
   arrows(dates,y0=pred$yl,y1=pred$yu,code=0)
     # plot median passage stimate    
-  points(dates,pred$Est.Missing, pch=21, col='black',bg='white')
+   points(dates,pred$Median, pch=21, col='black',bg='white')
   }
 })
 

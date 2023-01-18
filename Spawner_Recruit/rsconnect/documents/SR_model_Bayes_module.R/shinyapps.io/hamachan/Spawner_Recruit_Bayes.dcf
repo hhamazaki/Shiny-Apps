@@ -1,0 +1,14 @@
+name: Spawner_Recruit_Bayes
+title: Spawner_Recruit_Bayes
+username:
+account: hamachan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1875809
+bundleId: 6619794
+url: https://hamachan.shinyapps.io/Spawner_Recruit_Bayes/
+when: 1670669184.30464
+lastSyncTime: 1670669184.30465
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: officedown.Rmd|Sample_Esc_data_NA.csv|tests/shinytest.R

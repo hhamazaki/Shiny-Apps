@@ -5,8 +5,10 @@ account: hamachan
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1620636
-bundleId: 2726537
+bundleId: 6353112
 url: https://hamachan.shinyapps.io/Missed_Run/
-when: 1578960136.1383
+when: 1664482400.72762
+lastSyncTime: 1664482400.72765
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: app.txt
